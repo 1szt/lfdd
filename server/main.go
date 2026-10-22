@@ -3,11 +3,11 @@ package main
 import (
 	"hxzl/api"
 	"hxzl/config"
-	"hxzl/gin"
 	"hxzl/gorm"
 	"hxzl/home"
-	"hxzl/web"
 	"hxzl/motd"
+	"hxzl/server"
+	"hxzl/web"
 )
 
 func main() {
@@ -18,5 +18,5 @@ func main() {
 	web.Start()
 	home.Start()
 	api.Start()
-	gin.Start()
+	server.Start()
 }

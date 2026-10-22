@@ -2,8 +2,8 @@ package api
 
 import (
 	"hxzl/config"
-	web "hxzl/gin"
 	"hxzl/gorm"
+	"hxzl/server"
 
 	"github.com/gin-gonic/gin"
 )
@@ -73,7 +73,7 @@ func InstallSubmit(c *gin.Context) {
 	gorm.Reload()
 
 	// 初始化完成后热切换到新地址
-	web.Restart()
+	server.Restart()
 
 	c.JSON(200, InstallResponse{Code: 0, Message: "初始化完成"})
 }

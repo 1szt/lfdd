@@ -1,14 +1,14 @@
 package api
 
 import (
-	web "hxzl/gin"
+	"hxzl/server"
 	"log"
 
 	g "github.com/gin-gonic/gin"
 )
 
 func Start() {
-	apiRoute := web.Router.Group("/api")
+	apiRoute := server.Router.Group("/api")
 	apiRoute.GET("/", home)
 	apiRoute.GET("/menu", GetMenu)
 

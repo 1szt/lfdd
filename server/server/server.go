@@ -1,4 +1,5 @@
-package gin
+// Package server web 框架模块：持有全局 Router，负责 web 服务的启动/重启/热重载。
+package server
 
 import (
 	"context"
@@ -39,11 +40,11 @@ func start(addr string) {
 		WriteTimeout: 10 * time.Second,
 	}
 
-	log.Printf("🌐 [Gin] 访问 http://%s", addr)
+	log.Printf("🌐 [Server] 访问 http://%s", addr)
 	lastConfig = addr
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("❌ [Gin] 致命错误：%v", err)
+		log.Fatalf("❌ [Server] 致命错误：%v", err)
 	}
 }
 
@@ -60,15 +61,15 @@ func Restart() {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			log.Printf("❌ [Gin] 停止旧服务失败: %v", err)
+			log.Printf("❌ [Server] 停止旧服务失败: %v", err)
 		} else {
-			log.Printf("🔄 [Gin] 已停止旧端口服务")
+			log.Printf("🔄 [Server] 已停止旧端口服务")
 		}
 	}
 
 	// 在新地址启动（开一个 goroutine 避免阻塞）
 	go start(addr)
-	log.Printf("✅ [Gin] 服务已切换到 %s", addr)
+	log.Printf("✅ [Server] 服务已切换到 %s", addr)
 	lastConfig = addr
 }
 
@@ -85,15 +86,15 @@ func Reload() {
 
 	// 配置没变且运行中 → 跳过
 	if running && addr == lastConfig {
-		log.Println("🔄 [Gin] 配置无变化且服务运行中，跳过重载")
+		log.Println("🔄 [Server] 配置无变化且服务运行中，跳过重载")
 		return
 	}
 
 	// 重载
 	if !running {
-		log.Println("🔄 [Gin] 服务未运行，启动服务...")
+		log.Println("🔄 [Server] 服务未运行，启动服务...")
 	} else {
-		log.Println("🔄 [Gin] 配置已变化，重启服务...")
+		log.Println("🔄 [Server] 配置已变化，重启服务...")
 	}
 	Restart()
 }
