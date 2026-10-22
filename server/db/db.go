@@ -1,4 +1,5 @@
-package gorm
+// Package db 数据库模块：持有全局 DB 实例，负责数据库连接的建立/关闭/重连（ORM 底层为 gorm）。
+package db
 
 import (
 	"fmt"
@@ -24,7 +25,7 @@ type DBStatus struct {
 
 func Start() {
 	if config.Get("server_install").Value != "true" {
-		log.Println("⚠️ [GORM] 服务器未初始化，跳过数据库连接，等待初始化...")
+		log.Println("⚠️ [DB] 服务器未初始化，跳过数据库连接，等待初始化...")
 		return
 	}
 	connect()
@@ -36,15 +37,15 @@ func Stop() {
 	}
 	sqlDB, err := DB.DB()
 	if err != nil {
-		log.Printf("❌ [GORM] 获取底层连接失败: %v", err)
+		log.Printf("❌ [DB] 获取底层连接失败: %v", err)
 		return
 	}
 	if err := sqlDB.Close(); err != nil {
-		log.Printf("❌ [GORM] 关闭数据库连接失败: %v", err)
+		log.Printf("❌ [DB] 关闭数据库连接失败: %v", err)
 		return
 	}
 	DB = nil
-	log.Println("✅ [GORM] 数据库连接已关闭")
+	log.Println("✅ [DB] 数据库连接已关闭")
 }
 
 func Restart() {
@@ -70,15 +71,15 @@ func Reload() {
 
 	// 配置没变且已连接 → 跳过
 	if connected && currentConfig == lastConfig {
-		log.Println("🔄 [GORM] 配置无变化且已连接，跳过重载")
+		log.Println("🔄 [DB] 配置无变化且已连接，跳过重载")
 		return
 	}
 
 	// 有变化或未连接 → 重连
 	if !connected {
-		log.Println("🔄 [GORM] 数据库未连接，重新连接...")
+		log.Println("🔄 [DB] 数据库未连接，重新连接...")
 	} else {
-		log.Println("🔄 [GORM] 配置已变化，重新连接...")
+		log.Println("🔄 [DB] 配置已变化，重新连接...")
 	}
 	Stop()
 	connect()
@@ -107,7 +108,7 @@ func Status() DBStatus {
 func connect() {
 	dbType := config.Get("db_type").Value
 	if dbType == "" {
-		log.Fatal("❌ [GROM] 未找到 db_type 配置")
+		log.Fatal("❌ [DB] 未找到 db_type 配置")
 		return
 	}
 
@@ -137,7 +138,7 @@ func connect() {
 		dialector = mysql.Open(dsn)
 
 	default:
-		log.Fatalf("⚠️ [GROM] 数据库模块 配置错误！无法识别的数据库类型: %s", dbType)
+		log.Fatalf("⚠️ [DB] 数据库模块 配置错误！无法识别的数据库类型: %s", dbType)
 		return
 	}
 
@@ -147,10 +148,10 @@ func connect() {
 	})
 
 	if err != nil {
-		log.Printf("❌ [GORM] 初始化数据库 %s 失败: %v", dbType, err)
+		log.Printf("❌ [DB] 初始化数据库 %s 失败: %v", dbType, err)
 		return
 	}
 
-	log.Printf("✅ [GORM] 已成功初始化数据库 %s", dbType)
+	log.Printf("✅ [DB] 已成功初始化数据库 %s", dbType)
 	lastConfig = dbType + "|" + config.Get("db_host").Value + "|" + config.Get("db_port").Value + "|" + config.Get("db_name").Value + "|" + config.Get("db_path").Value
 }

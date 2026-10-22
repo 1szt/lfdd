@@ -3,7 +3,7 @@ package main
 import (
 	"hxzl/api"
 	"hxzl/config"
-	"hxzl/gorm"
+	"hxzl/db"
 	"hxzl/home"
 	"hxzl/motd"
 	"hxzl/server"
@@ -13,7 +13,7 @@ import (
 func main() {
 	motd.Start()
 	config.Start()
-	gorm.Start()
+	db.Start()
 
 	web.Start()
 	home.Start()

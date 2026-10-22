@@ -2,7 +2,7 @@ package api
 
 import (
 	"hxzl/config"
-	"hxzl/gorm"
+	"hxzl/db"
 	"hxzl/server"
 
 	"github.com/gin-gonic/gin"
@@ -70,7 +70,7 @@ func InstallSubmit(c *gin.Context) {
 	config.Set("server_install", "true", user)
 
 	// 初始化完成后重载数据库连接
-	gorm.Reload()
+	db.Reload()
 
 	// 初始化完成后热切换到新地址
 	server.Restart()
