@@ -2,14 +2,14 @@
 package web
 
 import (
-	g "github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin"
 )
 
 // Engine 全局路由引擎，各业务模块通过它注册自己的路由
-var Engine = g.New()
+var Engine = gin.New()
 
 // Start 注册全局中间件（Recovery + Logger）
 func Start() {
-	Engine.Use(g.Recovery())
-	Engine.Use(g.Logger())
+	Engine.Use(gin.Recovery())
+	Engine.Use(gin.Logger())
 }
