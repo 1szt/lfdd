@@ -1,4 +1,5 @@
-package api
+// Package install 安装初始化接口：检查/提交服务器初始化配置。
+package install
 
 import (
 	"hxzl/config"
@@ -7,6 +8,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// Register 注册安装初始化相关路由（由 api 模块传入路由组）
+func Register(rg *gin.RouterGroup) {
+	rg.GET("/install/check", InstallCheck)
+	rg.POST("/install/submit", InstallSubmit)
+}
 
 // -------- 请求/响应结构 --------
 

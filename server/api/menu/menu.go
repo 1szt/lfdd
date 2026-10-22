@@ -1,10 +1,16 @@
-package api
+// Package menu 菜单接口：提供菜品分类与商品数据。
+package menu
 
 import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
+
+// Register 注册菜单相关路由（由 api 模块传入路由组）
+func Register(rg *gin.RouterGroup) {
+	rg.GET("/menu", GetMenu)
+}
 
 // -------- 数据结构 --------
 
