@@ -14,5 +14,5 @@ func Start() {
 }
 
 func home(c *g.Context) {
-	c.String(200, "主页")
+	c.String(200, "Hello, World!")
 }
