@@ -1,17 +1,15 @@
-// Package server web 框架模块：持有全局 Router，负责 web 服务的启动/重启/热重载。
+// Package server web 服务模块：负责 web 服务的启动/重启/热重载（路由引擎在 web 模块）。
 package server
 
 import (
 	"context"
 	"hxzl/config"
+	"hxzl/web"
 	"log"
 	"net/http"
 	"time"
-
-	g "github.com/gin-gonic/gin"
 )
 
-var Router = g.New()
 var server *http.Server
 var lastConfig string
 
@@ -35,7 +33,7 @@ func Start() {
 func start(addr string) {
 	server = &http.Server{
 		Addr:         addr,
-		Handler:      Router,
+		Handler:      web.Engine,
 		ReadTimeout:  5 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}

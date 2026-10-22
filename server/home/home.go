@@ -1,14 +1,14 @@
 package home
 
 import (
-	"hxzl/server"
+	"hxzl/web"
 	"log"
 
 	g "github.com/gin-gonic/gin"
 )
 
 func Start() {
-	server.Router.GET("/", home)
+	web.Engine.GET("/", home)
 
 	log.Print("✅ [Home] 主页模块 加载完成！")
 }
