@@ -20,13 +20,7 @@ type ServerStatus struct {
 	Status string `json:"status"`
 }
 
-// Init 初始化中间件（在模块注册路由前调用）
-func Init() {
-	Router.Use(g.Recovery())
-	Router.Use(g.Logger())
-}
-
-// Start 启动 web 服务（从配置读取 ip 和端口）
+// Start 启动 web 服务（阻塞，从配置读取 ip 和端口）
 func Start() {
 	ip := config.Get("server_ip").Value
 	port := config.Get("server_port").Value
