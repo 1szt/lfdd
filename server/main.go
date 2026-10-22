@@ -6,7 +6,7 @@ import (
 	"hxzl/gin"
 	"hxzl/gorm"
 	"hxzl/home"
-	"hxzl/initmod"
+	"hxzl/initpkg"
 	"hxzl/motd"
 )
 
@@ -14,7 +14,7 @@ func main() {
 	motd.Start()
 	config.Start()
 	gorm.Start()
-	initmod.Start()
+	initpkg.Start()
 	home.Start()
 	api.Start()
 	gin.Start()
