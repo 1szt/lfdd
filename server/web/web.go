@@ -3,17 +3,9 @@ package web
 
 import (
 	"hxzl/web/middleware"
-	"os"
 
 	"github.com/gin-gonic/gin"
 )
-
-func init() {
-	// LFDD_MODE=release 时关闭 gin 的调试输出（路由打印、开发警告等）
-	if os.Getenv("LFDD_MODE") == "release" {
-		gin.SetMode(gin.ReleaseMode)
-	}
-}
 
 // Engine 全局路由引擎，各业务模块通过它注册自己的路由
 var Engine = gin.New()

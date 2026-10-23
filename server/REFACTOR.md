@@ -56,8 +56,8 @@ motd 模块
 server 模块实现 HTTPS/TLS 监听
 新增 tlsFromConfig()：读 server_https / server_cert / server_key，开启 HTTPS 但证书密钥缺任一时打警告并回退 HTTP。start() 按开关走 ListenAndServeTLS 或 ListenAndServe。监听状态改为"地址+TLS 指纹"（listenDesc），Reload 对比指纹，证书路径变化也能触发重载；Status 解析时截掉指纹部分。
 
-web 模块支持 ReleaseMode
-新增 init()：环境变量 LFDD_MODE=release 时调用 gin.SetMode(gin.ReleaseMode)，关闭路由打印等调试输出。缺省仍为 gin 默认的 DebugMode，不改变现有行为。
+web 模块支持 ReleaseMode（后按需删除）
+曾新增 init()：环境变量 LFDD_MODE=release 时调用 gin.SetMode。后应用户要求删除，gin 保持默认 DebugMode，启动会打印路由注册信息。
 
 api/install 防重复提交
 InstallSubmit 开头检查 server_install == "true"，已初始化直接返回 400，避免重复提交覆盖线上配置。
