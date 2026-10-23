@@ -13,7 +13,7 @@ func Start() {
 	env.Add("LFDD_SERVER_IP", "", "服务器 IP")
 
 	env.Add("LFDD_SERVER_HTTPS", "", "是否启用 HTTPS（true/false）")
-	env.Add("LFDD_SERVER_HTTPS_AUTO", "", "是否自动申请证书（true/false）")
+	env.Add("LFDD_SERVER_HTTPS_AUTO", "", "是否自签名证书（true/false）")
 	env.Add("LFDD_SERVER_CERT", "", "HTTPS 证书路径")
 	env.Add("LFDD_SERVER_KEY", "", "HTTPS 私钥路径")
 	env.Add("LFDD_SERVER_INSTALL", "false", "是否已完成初始化安装（true/false）")

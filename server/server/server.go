@@ -3,10 +3,19 @@ package server
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"hxzl/web"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -43,18 +52,93 @@ func addrFromConfig() string {
 }
 
 // tlsFromConfig 读取 HTTPS 配置，返回（是否启用, 证书路径, 密钥路径）。
-// 证书或密钥缺任一即视为未启用，回退 HTTP。
+// 优先使用手动配置的证书；未配置证书但开启 LFDD_SERVER_HTTPS_AUTO 时自动生成自签名证书。
+// 以上都不满足即视为未启用，回退 HTTP。
 func tlsFromConfig() (enabled bool, cert, key string) {
 	if env.Get("LFDD_SERVER_HTTPS") != "true" {
 		return false, "", ""
 	}
 	cert = env.Get("LFDD_SERVER_CERT")
 	key = env.Get("LFDD_SERVER_KEY")
-	if cert == "" || key == "" {
-		log.Println("⚠️ [Server] 已开启 HTTPS 但证书/密钥未配置，回退 HTTP")
-		return false, "", ""
+	if cert != "" && key != "" {
+		return true, cert, key
 	}
-	return true, cert, key
+	if env.Get("LFDD_SERVER_HTTPS_AUTO") == "true" {
+		cert, key, err := ensureSelfSignedCert()
+		if err != nil {
+			log.Printf("❌ [Server] 自签名证书生成失败: %v，回退 HTTP", err)
+			return false, "", ""
+		}
+		return true, cert, key
+	}
+	log.Println("⚠️ [Server] 已开启 HTTPS 但证书/密钥未配置，回退 HTTP")
+	return false, "", ""
+}
+
+// ensureSelfSignedCert 确保存在可用的自签名证书：已生成且未临近过期（30 天内）则复用，
+// 否则生成 ECDSA P-256 证书（有效期 1 年）落盘到 data/tls/。
+// SAN 包含 localhost、127.0.0.1、::1 及配置的服务器 IP，避免浏览器报域名不匹配。
+func ensureSelfSignedCert() (certPath, keyPath string, err error) {
+	certPath = filepath.Join("data", "tls", "selfsigned.crt")
+	keyPath = filepath.Join("data", "tls", "selfsigned.key")
+
+	// 已有证书且未临近过期 → 直接复用
+	if certPEM, err := os.ReadFile(certPath); err == nil {
+		if block, _ := pem.Decode(certPEM); block != nil {
+			if c, perr := x509.ParseCertificate(block.Bytes); perr == nil && c.NotAfter.After(time.Now().Add(30*24*time.Hour)) {
+				if _, kerr := os.Stat(keyPath); kerr == nil {
+					return certPath, keyPath, nil
+				}
+			}
+		}
+	}
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		return "", "", err
+	}
+
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return "", "", err
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "lfdd"},
+		NotBefore:    time.Now().Add(-time.Hour), // 容忍时钟偏差
+		NotAfter:     time.Now().AddDate(1, 0, 0),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:     []string{"localhost"},
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+	if ip := net.ParseIP(env.Get("LFDD_SERVER_IP")); ip != nil {
+		template.IPAddresses = append(template.IPAddresses, ip)
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	if err != nil {
+		return "", "", err
+	}
+
+	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return "", "", err
+	}
+
+	if err = os.MkdirAll(filepath.Dir(certPath), 0755); err != nil {
+		return "", "", err
+	}
+	if err = os.WriteFile(certPath, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0644); err != nil {
+		return "", "", err
+	}
+	if err = os.WriteFile(keyPath, pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER}), 0600); err != nil {
+		return "", "", err
+	}
+
+	log.Println("🔐 [Server] 已生成自签名证书 data/tls/（浏览器会提示不受信任，属正常现象）")
+	return certPath, keyPath, nil
 }
 
 // listenDesc 组合地址与 TLS 配置的描述，用于 Reload 对比配置是否变化
