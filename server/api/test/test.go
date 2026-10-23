@@ -21,21 +21,15 @@ func page(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageHTML))
 }
 
-type statusResponse struct {
-	Code int `json:"code"`
-	Data struct {
-		Server server.ServerStatus `json:"server"`
-		DB     db.DBStatus         `json:"db"`
-	} `json:"data"`
-}
-
 // status 返回当前服务与数据库状态
 func status(c *gin.Context) {
-	var resp statusResponse
-	resp.Code = 0
-	resp.Data.Server = server.Status()
-	resp.Data.DB = db.Status()
-	c.JSON(http.StatusOK, resp)
+	c.JSON(http.StatusOK, gin.H{
+		"code": 0,
+		"data": gin.H{
+			"server": server.Status(),
+			"db":     db.Status(),
+		},
+	})
 }
 
 // apply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）

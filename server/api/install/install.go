@@ -30,61 +30,36 @@ type InstallRequest struct {
 	DBPassword string `json:"db_password"`
 }
 
-type InstallResponse struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
-}
-
-type CheckData struct {
-	NeedInstall bool `json:"need_install"`
-}
-
-type CheckResponse struct {
-	Code    int       `json:"code"`
-	Message string    `json:"message"`
-	Data    CheckData `json:"data"`
-}
-
 // -------- 接口1: 检查是否已初始化 --------
 // InstallCheck 检查服务器是否已初始化
-// @Summary 检查服务器是否已初始化
-// @Tags 安装
-// @Produce json
-// @Success 200 {object} CheckResponse "data.need_install=true 表示需要初始化"
-// @Router /install/check [get]
+// data.need_install=true 表示需要初始化
 func InstallCheck(c *gin.Context) {
 	install := env.Get("LFDD_SERVER_INSTALL")
 
 	// 不存在 / 空 / false → 需要安装
 	needInstall := install == "" || install == "false"
 
-	c.JSON(200, CheckResponse{
-		Code:    0,
-		Message: "ok",
-		Data:    CheckData{NeedInstall: needInstall},
+	c.JSON(200, gin.H{
+		"code":    0,
+		"message": "ok",
+		"data":    gin.H{"need_install": needInstall},
 	})
 }
 
 // -------- 接口2: 提交初始化信息 --------
-// InstallSubmit 提交初始化配置
-// @Summary 提交初始化配置（写入配置并热重载数据库连接与监听端口）
-// @Tags 安装
-// @Accept json
-// @Param data body InstallRequest true "初始化参数（sqlite 必填 server_ip/server_port/db_type/db_path，其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password）"
-// @Success 200 {object} InstallResponse "初始化完成，随后服务热切换"
-// @Failure 400 {object} InstallResponse "参数错误或已初始化"
-// @Failure 500 {object} InstallResponse "写入配置失败"
-// @Router /install/submit [post]
+// InstallSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
+// sqlite 必填 server_ip/server_port/db_type/db_path，
+// 其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password
 func InstallSubmit(c *gin.Context) {
 	// 防重复提交：已初始化完成则直接拒绝，避免覆盖线上配置
 	if env.Get("LFDD_SERVER_INSTALL") == "true" {
-		c.JSON(400, InstallResponse{Code: -1, Message: "服务器已初始化，不能重复提交"})
+		c.JSON(400, gin.H{"code": -1, "message": "服务器已初始化，不能重复提交"})
 		return
 	}
 
 	var req InstallRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, InstallResponse{Code: -1, Message: "参数错误"})
+		c.JSON(400, gin.H{"code": -1, "message": "参数错误"})
 		return
 	}
 
@@ -107,7 +82,7 @@ func InstallSubmit(c *gin.Context) {
 	for _, item := range configs {
 		if err := env.Set(item.name, item.value); err != nil {
 			log.Printf("❌ [API] 初始化写入配置 %s 失败: %v", item.name, err)
-			c.JSON(500, InstallResponse{Code: -1, Message: "写入配置失败: " + item.name})
+			c.JSON(500, gin.H{"code": -1, "message": "写入配置失败: " + item.name})
 			return
 		}
 	}
@@ -115,7 +90,7 @@ func InstallSubmit(c *gin.Context) {
 	// 最后设置 LFDD_SERVER_INSTALL = true，表示初始化完成
 	if err := env.Set("LFDD_SERVER_INSTALL", "true"); err != nil {
 		log.Printf("❌ [API] 初始化写入 server_install 失败: %v", err)
-		c.JSON(500, InstallResponse{Code: -1, Message: "写入初始化标记失败"})
+		c.JSON(500, gin.H{"code": -1, "message": "写入初始化标记失败"})
 		return
 	}
 
@@ -125,6 +100,6 @@ func InstallSubmit(c *gin.Context) {
 	// 先返回响应，再异步热切换到新地址：
 	// Restart 会 Shutdown 当前服务并等待在途请求结束，当前请求就是本请求，
 	// 同步调用会阻塞到超时；放 goroutine 里让响应先送达前端。
-	c.JSON(200, InstallResponse{Code: 0, Message: "初始化完成"})
+	c.JSON(200, gin.H{"code": 0, "message": "初始化完成"})
 	go server.Restart()
 }

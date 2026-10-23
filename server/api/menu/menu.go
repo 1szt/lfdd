@@ -28,12 +28,6 @@ type CategoryItem struct {
 	Goods []GoodsItem `json:"goods"`
 }
 
-type MenuResponse struct {
-	Code       int            `json:"code"`
-	Message    string         `json:"message"`
-	Categories []CategoryItem `json:"categories"`
-}
-
 // -------- 模拟数据 --------
 
 var menuData = []CategoryItem{
@@ -76,15 +70,10 @@ var menuData = []CategoryItem{
 }
 
 // GetMenu 获取菜单
-// @Summary 获取菜品分类与商品列表
-// @Tags 菜单
-// @Produce json
-// @Success 200 {object} MenuResponse
-// @Router /menu [get]
 func GetMenu(c *gin.Context) {
-	c.JSON(http.StatusOK, MenuResponse{
-		Code:       200,
-		Message:    "success",
-		Categories: menuData,
+	c.JSON(http.StatusOK, gin.H{
+		"code":       200,
+		"message":    "success",
+		"categories": menuData,
 	})
 }

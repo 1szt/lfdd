@@ -192,56 +192,8 @@ POST /api/install/submit ──► 200 初始化完成
 
 ---
 
-## 6. Swagger 接口文档（本地生成）
+## 6. 接口文档维护方式
 
-接口文档用 swaggo 从 handler 注释生成，产物在 `docs/` 目录，**只在本地生成和查看，不在服务里挂载文档路由**（生产服务不暴露接口目录）。
+接口文档就是本文件（API.md），手写维护：改了接口顺手更新对应章节即可，响应示例直接贴 `curl` 或前端实际收到的 JSON。
 
-### 6.1 日常工作流（三步）
-
-```text
-① 修改 handler 上的注释（见下方模板）
-② server 目录双击 swag-init.bat（或手动执行 swag init）
-③ 查看 docs/swagger.json（编辑器直接打开，或导入 Apifox/Postman 可视化浏览）
-```
-
-注意顺序：**先改注释 → 再 swag init**，生成结果不依赖业务代码，但路由变了页面上的试调路径要对得上。
-
-### 6.2 注释模板
-
-GET 接口（放在 handler 函数上方）：
-
-```go
-// GetMenu 获取菜单
-// @Summary 获取菜品分类与商品列表
-// @Tags 菜单                ← 文档页左侧的分组名
-// @Produce json
-// @Success 200 {object} MenuResponse
-// @Router /menu [get]       ← 相对 @BasePath(/api)，完整路径 = /api/menu
-func GetMenu(c *gin.Context) { ... }
-```
-
-POST 接口（带请求体）：
-
-```go
-// @Accept json
-// @Param data body InstallRequest true "初始化参数说明"
-// @Success 200 {object} InstallResponse
-// @Failure 400 {object} InstallResponse
-// @Router /install/submit [post]
-```
-
-规则要点：
-
-- `{object}` 引用**当前包内的结构体名**，swag 会自动展开字段（结构体改了字段，重新 `swag init` 即同步）
-- `@Tags` 决定文档页分组，新增业务子包时用子包名作 Tag（如 `菜单`、`安装`、`用户`）
-- `@Router` 路径不带 `/api` 前缀（`@BasePath` 定义在 [main.go](file:///c:/Users/jingxuanwei/Desktop/code/lfdd/server/main.go) 顶部）
-
-### 6.3 相关文件
-
-| 文件 | 说明 |
-| --- | --- |
-| `docs/`（docs.go / swagger.json / swagger.yaml） | `swag init` 自动生成，**不要手改**，改注释重新生成即可 |
-| `swag-init.bat` | 双击即可执行 `swag init` 的快捷脚本，窗口停住按任意键关闭 |
-| main.go 顶部 `// @title` 注释 | 文档标题、版本、@BasePath 全局定义 |
-
-新增/修改接口后忘记 `swag init`，生成的 docs/ 内容不会更新（git 提交时把 `docs/` 一起提交，方便 diff 查看接口变更）。
+新增接口时按现有章节结构补一节：请求方法 + 路径、参数表、响应示例（json 代码块）、错误码。
