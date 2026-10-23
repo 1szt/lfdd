@@ -8,13 +8,10 @@ import (
 	"hxzl/api/test"
 	"hxzl/web"
 	"log"
-
-	"github.com/gin-gonic/gin"
 )
 
 func Start() {
 	apiRoute := web.Engine.Group("/api")
-	apiRoute.GET("/", home)
 
 	// 各业务子包注册自己的路由
 	install.Register(apiRoute)
@@ -22,8 +19,4 @@ func Start() {
 	test.Register(apiRoute)
 
 	log.Print("✅ [API] API模块 加载完成！")
-}
-
-func home(c *gin.Context) {
-	c.String(200, "API")
 }
