@@ -28,6 +28,8 @@ func Start() {
 	log.SetOutput(w)      // 标准库 log（业务日志）
 	gin.DefaultWriter = w // gin 访问日志
 	gin.DefaultErrorWriter = w
+
+	log.Println("✅ [Log] 日志模块 初始化完成")
 }
 
 // openLogFile 创建目录并以追加模式打开日志文件；启动时超限则轮转一次。

@@ -1,6 +1,8 @@
 package env
 
 import (
+	"log"
+
 	"github.com/1szt/go-pkg/env"
 )
 
@@ -29,4 +31,6 @@ func Start() {
 	env.Add("LFDD_DB_NAME", "", "数据库名")
 	env.Add("LFDD_DB_USER", "", "数据库用户名")
 	env.Add("LFDD_DB_PASSWORD", "", "数据库密码")
+
+	log.Println("✅ [Env] 配置文件 初始化完成")
 }

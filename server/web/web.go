@@ -3,6 +3,7 @@ package web
 
 import (
 	"hxzl/web/middleware"
+	"log"
 	"strconv"
 	"time"
 
@@ -23,6 +24,7 @@ func Start() {
 	Engine.Use(gin.LoggerWithFormatter(accessLogFormat))
 	Engine.Use(gin.Recovery())
 	Engine.Use(middleware.InitGuard())
+	log.Println("✅ [Web] 全局中间件 加载完成！")
 }
 
 // accessLogFormat 自定义访问日志格式（去掉 gin 默认的 [GIN] 前缀）
