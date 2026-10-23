@@ -27,7 +27,7 @@ func Start() {
 
 // accessLogFormat 自定义访问日志格式（去掉 gin 默认的 [GIN] 前缀）
 func accessLogFormat(p gin.LogFormatterParams) string {
-	return p.TimeStamp.Format("2006/01/02 - 15:04:05") +
+	return p.TimeStamp.Format("2006/01/02 15:04:05") +
 		" | " + strconv.Itoa(p.StatusCode) +
 		" | " + fmtLatency(p.Latency) +
 		" | " + p.ClientIP +

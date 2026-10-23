@@ -9,6 +9,7 @@ import (
 	"hxzl/db"
 	"hxzl/env"
 	"hxzl/home"
+	"hxzl/logx"
 	"hxzl/motd"
 	"hxzl/server"
 	"hxzl/web"
@@ -17,6 +18,7 @@ import (
 func main() {
 	motd.Start()
 	env.Start()
+	logx.Start()
 	db.Start()
 
 	web.Start()
