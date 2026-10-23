@@ -16,9 +16,9 @@ import (
 )
 
 func main() {
+	motd.Start()
 	env.Start()
 	logx.Start()
-	motd.Start()
 	db.Start()
 	web.Start()
 	home.Start()

@@ -11,7 +11,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Start 初始化日志输出。必须在 env.Start() 之后、其余模块之前调用。
+// Start 初始化日志输出。必须第一个调用（env.Start 之前）。
+// 直接从 data/.env 读 LFDD_LOG_PATH（不依赖 env.Start 补全），保证后续模块日志都能落盘。
 // 控制台始终输出；配置了 LFDD_LOG_PATH 则同时追加写入该文件。
 func Start() {
 	var w io.Writer = os.Stdout
