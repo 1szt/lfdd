@@ -12,8 +12,6 @@ import (
 	"hxzl/motd"
 	"hxzl/server"
 	"hxzl/web"
-
-	_ "hxzl/docs" // 导入 swaggo 生成的接口文档（swag init 生成）
 )
 
 func main() {
