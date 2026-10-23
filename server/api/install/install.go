@@ -103,8 +103,9 @@ func InstallSubmit(c *gin.Context) {
 	// 初始化完成后重载数据库连接
 	db.Reload()
 
-	// 初始化完成后热切换到新地址
-	server.Restart()
-
+	// 先返回响应，再异步热切换到新地址：
+	// Restart 会 Shutdown 当前服务并等待在途请求结束，当前请求就是本请求，
+	// 同步调用会阻塞到超时；放 goroutine 里让响应先送达前端。
 	c.JSON(200, InstallResponse{Code: 0, Message: "初始化完成"})
+	go server.Restart()
 }
