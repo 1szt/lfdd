@@ -36,9 +36,12 @@ type ServerStatus struct {
 	Status string `json:"status"`
 }
 
-// Start 启动 web 服务（阻塞，从配置读取 ip 和端口）
+// Start 启动 web 服务（阻塞，从配置读取 ip 和端口）。
+// 热重载时 Restart 会关闭旧监听，导致 start 返回，但新监听已在 Restart 的 goroutine 中启动，
+// 因此这里挂起防止 main 返回导致整个进程退出。
 func Start() {
 	start(addrFromConfig())
+	select {}
 }
 
 // addrFromConfig 从配置读取 ip 和端口，拼出监听地址（端口缺省 9081）

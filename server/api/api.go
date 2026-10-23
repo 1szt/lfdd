@@ -5,6 +5,7 @@ package api
 import (
 	"hxzl/api/install"
 	"hxzl/api/menu"
+	"hxzl/api/test"
 	"hxzl/web"
 	"log"
 
@@ -18,6 +19,7 @@ func Start() {
 	// 各业务子包注册自己的路由
 	install.Register(apiRoute)
 	menu.Register(apiRoute)
+	test.Register(apiRoute)
 
 	log.Print("✅ [API] API模块 加载完成！")
 }
