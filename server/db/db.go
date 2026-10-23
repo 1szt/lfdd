@@ -55,8 +55,7 @@ func Restart() {
 
 func Reload() {
 	// 构造当前配置指纹
-	dbType := config.Get("db_type").Value
-	currentConfig := dbType + "|" + config.Get("db_host").Value + "|" + config.Get("db_port").Value + "|" + config.Get("db_name").Value + "|" + config.Get("db_path").Value
+	currentConfig := configFingerprint()
 
 	// 检查数据库是否已连接
 	connected := false
@@ -85,6 +84,12 @@ func Reload() {
 	connect()
 }
 
+// configFingerprint 根据数据库相关配置生成指纹，用于判断配置是否变化
+func configFingerprint() string {
+	dbType := config.Get("db_type").Value
+	return dbType + "|" + config.Get("db_host").Value + "|" + config.Get("db_port").Value + "|" + config.Get("db_name").Value + "|" + config.Get("db_path").Value
+}
+
 func Status() DBStatus {
 	dbType := config.Get("db_type").Value
 	status := "disconnected"
@@ -109,7 +114,6 @@ func connect() {
 	dbType := config.Get("db_type").Value
 	if dbType == "" {
 		log.Fatal("❌ [DB] 未找到 db_type 配置")
-		return
 	}
 
 	var dialector gorm.Dialector
@@ -139,7 +143,6 @@ func connect() {
 
 	default:
 		log.Fatalf("⚠️ [DB] 数据库模块 配置错误！无法识别的数据库类型: %s", dbType)
-		return
 	}
 
 	var err error
@@ -153,5 +156,5 @@ func connect() {
 	}
 
 	log.Printf("✅ [DB] 已成功初始化数据库 %s", dbType)
-	lastConfig = dbType + "|" + config.Get("db_host").Value + "|" + config.Get("db_port").Value + "|" + config.Get("db_name").Value + "|" + config.Get("db_path").Value
+	lastConfig = configFingerprint()
 }

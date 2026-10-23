@@ -6,13 +6,20 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-var DB *gorm.DB
+var db *gorm.DB
+
+// cache 配置内存缓存，避免每次 Get 都查库；Set 写库成功后同步更新
+var (
+	cacheMu sync.RWMutex
+	cache   = map[string]string{}
+)
 
 type Config struct {
 	Name  string `json:"name"`
@@ -32,15 +39,14 @@ func Start() {
 
 	// 初始化数据库
 	var err error
-	DB, err = gorm.Open(sqlite.Open("data/config.db"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open("data/config.db"), &gorm.Config{})
 	if err != nil {
-		panic("failed to connect database")
+		panic("failed to connect config database: " + err.Error())
 	}
 
 	// 自动迁移数据库表
-	err = DB.AutoMigrate(&Config{})
-	if err != nil {
-		panic("failed to migrate database")
+	if err = db.AutoMigrate(&Config{}); err != nil {
+		panic("failed to migrate config table: " + err.Error())
 	}
 
 	// 从环境变量中读取配置
@@ -70,21 +76,36 @@ func (Config) TableName() string {
 	return "config"
 }
 
+// Get 读取配置（优先走内存缓存），不存在时返回零值（Value 为空字符串），不视为错误
 func Get(name string) Config {
+	cacheMu.RLock()
+	val, ok := cache[name]
+	cacheMu.RUnlock()
+	if ok {
+		return Config{Name: name, Value: val}
+	}
+
 	var cfg Config
-	if err := DB.Where("name = ?", name).First(&cfg).Error; err != nil {
-		log.Printf("❌ [Config] 查询配置 %s 失败: %v", name, err)
+	if err := db.Where("name = ?", name).First(&cfg).Error; err != nil {
+		// 配置不存在是正常情况（如首次安装前），只有真正的查询错误才记录日志
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("❌ [Config] 查询配置 %s 失败: %v", name, err)
+		}
 		return cfg
 	}
+
+	cacheMu.Lock()
+	cache[name] = cfg.Value
+	cacheMu.Unlock()
 	return cfg
 }
 
 func Set(name, value, user string) error {
 	if len(user) == 0 {
-		return errors.New("❌ [Config] 用户名不能为空")
+		return errors.New("用户名不能为空")
 	}
 	var cfg Config
-	err := DB.Where("name = ?", name).First(&cfg).Error
+	err := db.Where("name = ?", name).First(&cfg).Error
 	if err != nil {
 		// 不存在则创建
 		cfg = Config{
@@ -92,16 +113,25 @@ func Set(name, value, user string) error {
 			Value: value,
 			User:  user,
 		}
-		if err := DB.Create(&cfg).Error; err != nil {
-			return fmt.Errorf("❌ [Config] 创建配置 %s 失败: %v", name, err)
+		if err := db.Create(&cfg).Error; err != nil {
+			return fmt.Errorf("创建配置 %s 失败: %v", name, err)
 		}
+		putCache(name, value)
 		return nil
 	}
 	// 存在则修改
 	cfg.Value = value
 	cfg.User = user
-	if err := DB.Save(&cfg).Error; err != nil {
-		return fmt.Errorf("❌ [Config] 保存配置 %s 失败: %v", name, err)
+	if err := db.Save(&cfg).Error; err != nil {
+		return fmt.Errorf("保存配置 %s 失败: %v", name, err)
 	}
+	putCache(name, value)
 	return nil
+}
+
+// putCache 写入缓存（Set 成功后调用，保证缓存与库一致）
+func putCache(name, value string) {
+	cacheMu.Lock()
+	cache[name] = value
+	cacheMu.Unlock()
 }
