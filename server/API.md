@@ -17,6 +17,7 @@
 | GET | `/api/install/check` | 检查是否需要初始化 | 放行（白名单） |
 | POST | `/api/install/submit` | 提交初始化配置 | 放行（白名单） |
 | GET | `/api/menu` | 菜单数据（当前为 mock） | 拦截 |
+| GET | `/swagger/index.html` | Swagger 交互式文档页 | 放行（白名单） |
 
 ---
 
@@ -129,6 +130,7 @@ POST /api/install/submit ──► 200 初始化完成
 
 - `/` —— 安装页入口（静态页）
 - 前缀 `/api/install/` —— 初始化接口自身
+- 前缀 `/swagger` —— 接口文档页（开发期查阅用）
 
 **拦截响应**（HTTP **503**）：
 
@@ -189,3 +191,61 @@ POST /api/install/submit ──► 200 初始化完成
 | -1 | 服务端错误（写库、配置失败） |
 
 > 注意：`40001` 只出现在**被拦截**的响应里，业务接口自身不会返回它。后续新增业务码在 [REFACTOR.md](file:///c:/Users/jingxuanwei/Desktop/code/lfdd/server/REFACTOR.md) 集中登记。
+
+---
+
+## 6. Swagger 交互式文档（swaggo）
+
+文档页地址：`http://地址/swagger/index.html`（未初始化也可访问）。
+
+页面内可浏览全部接口、查看请求/响应结构、**在线试调**（点 Execute 直接请求运行中的服务）。
+
+### 6.1 日常工作流（三步）
+
+```text
+① 修改 handler 上的注释（见下方模板）
+② 项目根目录执行：swag init
+③ 刷新 /swagger/index.html
+```
+
+注意顺序：**先改注释 → 再 swag init**，生成结果不依赖业务代码，但路由变了页面上的试调路径要对得上。
+
+### 6.2 注释模板
+
+GET 接口（放在 handler 函数上方）：
+
+```go
+// GetMenu 获取菜单
+// @Summary 获取菜品分类与商品列表
+// @Tags 菜单                ← 文档页左侧的分组名
+// @Produce json
+// @Success 200 {object} MenuResponse
+// @Router /menu [get]       ← 相对 @BasePath(/api)，完整路径 = /api/menu
+func GetMenu(c *gin.Context) { ... }
+```
+
+POST 接口（带请求体）：
+
+```go
+// @Accept json
+// @Param data body InstallRequest true "初始化参数说明"
+// @Success 200 {object} InstallResponse
+// @Failure 400 {object} InstallResponse
+// @Router /install/submit [post]
+```
+
+规则要点：
+
+- `{object}` 引用**当前包内的结构体名**，swag 会自动展开字段（结构体改了字段，重新 `swag init` 即同步）
+- `@Tags` 决定文档页分组，新增业务子包时用子包名作 Tag（如 `菜单`、`安装`、`用户`）
+- `@Router` 路径不带 `/api` 前缀（`@BasePath` 定义在 [main.go](file:///c:/Users/jingxuanwei/Desktop/code/lfdd/server/main.go) 顶部）
+
+### 6.3 相关文件
+
+| 文件 | 说明 |
+| --- | --- |
+| `docs/`（docs.go / swagger.json / swagger.yaml） | `swag init` 自动生成，**不要手改**，改注释重新生成即可 |
+| main.go 顶部 `// @title` 注释 | 文档标题、版本、@BasePath 全局定义 |
+| main.go 的 `_ "hxzl/docs"` | 把生成的文档注册进运行时，**删除它文档页会 404** |
+
+新增/修改接口后忘记 `swag init`，文档页内容不会更新（git 提交时把 `docs/` 一起提交，部署才带得上文档）。

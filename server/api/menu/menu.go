@@ -75,9 +75,12 @@ var menuData = []CategoryItem{
 	},
 }
 
-// -------- 接口 --------
-
-// GET /api/menu
+// GetMenu 获取菜单
+// @Summary 获取菜品分类与商品列表
+// @Tags 菜单
+// @Produce json
+// @Success 200 {object} MenuResponse
+// @Router /menu [get]
 func GetMenu(c *gin.Context) {
 	c.JSON(http.StatusOK, MenuResponse{
 		Code:       200,

@@ -17,6 +17,7 @@ var initFreePaths = []string{
 // initFreePrefixes 未初始化时按前缀放行的路径
 var initFreePrefixes = []string{
 	"/api/install/", // 安装接口自身必须可访问（check/submit）
+	"/swagger",      // 接口文档页免检（开发期需要在未初始化时查阅文档）
 }
 
 // InitGuard 全局初始化检查中间件：server_install != true 时，

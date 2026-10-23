@@ -35,25 +35,46 @@ type InstallResponse struct {
 	Message string `json:"message"`
 }
 
+type CheckData struct {
+	NeedInstall bool `json:"need_install"`
+}
+
+type CheckResponse struct {
+	Code    int       `json:"code"`
+	Message string    `json:"message"`
+	Data    CheckData `json:"data"`
+}
+
 // -------- 接口1: 检查是否已初始化 --------
-// GET /api/install/check
+// InstallCheck 检查服务器是否已初始化
+// @Summary 检查服务器是否已初始化
+// @Tags 安装
+// @Produce json
+// @Success 200 {object} CheckResponse "data.need_install=true 表示需要初始化"
+// @Router /install/check [get]
 func InstallCheck(c *gin.Context) {
 	install := config.Get("server_install").Value
 
 	// 不存在 / 空 / false → 需要安装
 	needInstall := install == "" || install == "false"
 
-	c.JSON(200, gin.H{
-		"code":    0,
-		"message": "ok",
-		"data": gin.H{
-			"need_install": needInstall,
-		},
+	c.JSON(200, CheckResponse{
+		Code:    0,
+		Message: "ok",
+		Data:    CheckData{NeedInstall: needInstall},
 	})
 }
 
 // -------- 接口2: 提交初始化信息 --------
-// POST /api/install/submit
+// InstallSubmit 提交初始化配置
+// @Summary 提交初始化配置（写入配置并热重载数据库连接与监听端口）
+// @Tags 安装
+// @Accept json
+// @Param data body InstallRequest true "初始化参数（sqlite 必填 server_ip/server_port/db_type/db_path，其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password）"
+// @Success 200 {object} InstallResponse "初始化完成，随后服务热切换"
+// @Failure 400 {object} InstallResponse "参数错误或已初始化"
+// @Failure 500 {object} InstallResponse "写入配置失败"
+// @Router /install/submit [post]
 func InstallSubmit(c *gin.Context) {
 	// 防重复提交：已初始化完成则直接拒绝，避免覆盖线上配置
 	if config.Get("server_install").Value == "true" {
