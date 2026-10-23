@@ -170,15 +170,23 @@ func start(addr string) {
 
 	var err error
 	if tlsOn {
-		log.Printf("🔒 [Server] 访问 https://%s", addr)
+		log.Printf("🔒 [Server] 访问 https://%s", displayAddr(addr))
 		err = srv.ListenAndServeTLS(cert, key)
 	} else {
-		log.Printf("🌐 [Server] 访问 http://%s", addr)
+		log.Printf("🌐 [Server] 访问 http://%s", displayAddr(addr))
 		err = srv.ListenAndServe()
 	}
 	if err != nil && err != http.ErrServerClosed {
 		log.Fatalf("❌ [Server] 致命错误：%v", err)
 	}
+}
+
+// displayAddr 把裸端口监听地址（如 ":9081"）转成可点击的 localhost 地址
+func displayAddr(addr string) string {
+	if strings.HasPrefix(addr, ":") {
+		return "localhost" + addr
+	}
+	return addr
 }
 
 // Restart 停掉当前服务，从配置重新读取 ip 和端口重启

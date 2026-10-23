@@ -4,6 +4,7 @@ package web
 import (
 	"hxzl/web/middleware"
 
+	"github.com/1szt/go-pkg/env"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,6 +14,10 @@ var Engine = gin.New()
 // Start 注册全局中间件（Logger + Recovery + 初始化检查）
 // 必须在所有业务模块注册路由之前调用（gin 中间件对之后注册的路由才生效）
 func Start() {
+	// 非调试模式切换 gin 为 release，屏蔽路由注册等调试日志刷屏
+	if env.Get("LFDD_DEBUG") != "true" {
+		gin.SetMode(gin.ReleaseMode)
+	}
 	Engine.Use(gin.Logger())
 	Engine.Use(gin.Recovery())
 	Engine.Use(middleware.InitGuard())
