@@ -3,6 +3,7 @@ module hxzl
 go 1.27.2
 
 require (
+	github.com/1szt/go-pkg v0.0.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/swaggo/swag v1.16.6
 	gorm.io/driver/mysql v1.6.0

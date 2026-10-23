@@ -6,8 +6,8 @@ package main
 
 import (
 	"hxzl/api"
-	"hxzl/config"
 	"hxzl/db"
+	"hxzl/env"
 	"hxzl/home"
 	"hxzl/motd"
 	"hxzl/server"
@@ -16,7 +16,7 @@ import (
 
 func main() {
 	motd.Start()
-	config.Start()
+	env.Start()
 	db.Start()
 
 	web.Start()

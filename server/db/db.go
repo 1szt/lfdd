@@ -3,8 +3,9 @@ package db
 
 import (
 	"fmt"
-	"hxzl/config"
 	"log"
+
+	"github.com/1szt/go-pkg/env"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/driver/postgres"
@@ -24,7 +25,7 @@ type DBStatus struct {
 }
 
 func Start() {
-	if config.Get("server_install").Value != "true" {
+	if env.Get("LFDD_SERVER_INSTALL") != "true" {
 		log.Println("⚠️ [DB] 服务器未初始化，跳过数据库连接，等待初始化...")
 		return
 	}
@@ -86,12 +87,12 @@ func Reload() {
 
 // configFingerprint 根据数据库相关配置生成指纹，用于判断配置是否变化
 func configFingerprint() string {
-	dbType := config.Get("db_type").Value
-	return dbType + "|" + config.Get("db_host").Value + "|" + config.Get("db_port").Value + "|" + config.Get("db_name").Value + "|" + config.Get("db_path").Value
+	dbType := env.Get("LFDD_DB_TYPE")
+	return dbType + "|" + env.Get("LFDD_DB_HOST") + "|" + env.Get("LFDD_DB_PORT") + "|" + env.Get("LFDD_DB_NAME") + "|" + env.Get("LFDD_DB_PATH")
 }
 
 func Status() DBStatus {
-	dbType := config.Get("db_type").Value
+	dbType := env.Get("LFDD_DB_TYPE")
 	status := "disconnected"
 	if DB != nil {
 		sqlDB, err := DB.DB()
@@ -103,41 +104,41 @@ func Status() DBStatus {
 	}
 	return DBStatus{
 		Type:   dbType,
-		Host:   config.Get("db_host").Value,
-		Port:   config.Get("db_port").Value,
-		Name:   config.Get("db_name").Value,
+		Host:   env.Get("LFDD_DB_HOST"),
+		Port:   env.Get("LFDD_DB_PORT"),
+		Name:   env.Get("LFDD_DB_NAME"),
 		Status: status,
 	}
 }
 
 func connect() {
-	dbType := config.Get("db_type").Value
+	dbType := env.Get("LFDD_DB_TYPE")
 	if dbType == "" {
-		log.Fatal("❌ [DB] 未找到 db_type 配置")
+		log.Fatal("❌ [DB] 未找到 LFDD_DB_TYPE 配置")
 	}
 
 	var dialector gorm.Dialector
 
 	switch dbType {
 	case "sqlite", "sqlite3":
-		path := config.Get("db_path").Value
+		path := env.Get("LFDD_DB_PATH")
 		dialector = sqlite.Open(path)
 
 	case "pgsql", "postgres", "postgresql":
-		host := config.Get("db_host").Value
-		port := config.Get("db_port").Value
-		user := config.Get("db_user").Value
-		password := config.Get("db_password").Value
-		name := config.Get("db_name").Value
+		host := env.Get("LFDD_DB_HOST")
+		port := env.Get("LFDD_DB_PORT")
+		user := env.Get("LFDD_DB_USER")
+		password := env.Get("LFDD_DB_PASSWORD")
+		name := env.Get("LFDD_DB_NAME")
 		dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, name)
 		dialector = postgres.Open(dsn)
 
 	case "mysql", "mariadb":
-		host := config.Get("db_host").Value
-		port := config.Get("db_port").Value
-		user := config.Get("db_user").Value
-		password := config.Get("db_password").Value
-		name := config.Get("db_name").Value
+		host := env.Get("LFDD_DB_HOST")
+		port := env.Get("LFDD_DB_PORT")
+		user := env.Get("LFDD_DB_USER")
+		password := env.Get("LFDD_DB_PASSWORD")
+		name := env.Get("LFDD_DB_NAME")
 		dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, password, host, port, name)
 		dialector = mysql.Open(dsn)
 

@@ -2,11 +2,11 @@
 package install
 
 import (
-	"hxzl/config"
 	"hxzl/db"
 	"hxzl/server"
 	"log"
 
+	"github.com/1szt/go-pkg/env"
 	"github.com/gin-gonic/gin"
 )
 
@@ -53,7 +53,7 @@ type CheckResponse struct {
 // @Success 200 {object} CheckResponse "data.need_install=true 表示需要初始化"
 // @Router /install/check [get]
 func InstallCheck(c *gin.Context) {
-	install := config.Get("server_install").Value
+	install := env.Get("LFDD_SERVER_INSTALL")
 
 	// 不存在 / 空 / false → 需要安装
 	needInstall := install == "" || install == "false"
@@ -77,7 +77,7 @@ func InstallCheck(c *gin.Context) {
 // @Router /install/submit [post]
 func InstallSubmit(c *gin.Context) {
 	// 防重复提交：已初始化完成则直接拒绝，避免覆盖线上配置
-	if config.Get("server_install").Value == "true" {
+	if env.Get("LFDD_SERVER_INSTALL") == "true" {
 		c.JSON(400, InstallResponse{Code: -1, Message: "服务器已初始化，不能重复提交"})
 		return
 	}
@@ -88,34 +88,32 @@ func InstallSubmit(c *gin.Context) {
 		return
 	}
 
-	user := "admin" // 默认初始化用户
-
 	// 写入所有配置（Set 会自动判断：不存在则创建，存在则修改）
-	// 注意顺序：最后才写 server_install，中途失败则视为未完成初始化
+	// 注意顺序：最后才写 LFDD_SERVER_INSTALL，中途失败则视为未完成初始化
 	configs := []struct {
 		name  string
 		value string
 	}{
-		{"server_ip", req.ServerIP},
-		{"server_port", req.ServerPort},
-		{"db_type", req.DBType},
-		{"db_path", req.DBPath},
-		{"db_host", req.DBHost},
-		{"db_port", req.DBPort},
-		{"db_name", req.DBName},
-		{"db_user", req.DBUser},
-		{"db_password", req.DBPassword},
+		{"LFDD_SERVER_IP", req.ServerIP},
+		{"LFDD_PORT", req.ServerPort},
+		{"LFDD_DB_TYPE", req.DBType},
+		{"LFDD_DB_PATH", req.DBPath},
+		{"LFDD_DB_HOST", req.DBHost},
+		{"LFDD_DB_PORT", req.DBPort},
+		{"LFDD_DB_NAME", req.DBName},
+		{"LFDD_DB_USER", req.DBUser},
+		{"LFDD_DB_PASSWORD", req.DBPassword},
 	}
 	for _, item := range configs {
-		if err := config.Set(item.name, item.value, user); err != nil {
+		if err := env.Set(item.name, item.value); err != nil {
 			log.Printf("❌ [API] 初始化写入配置 %s 失败: %v", item.name, err)
 			c.JSON(500, InstallResponse{Code: -1, Message: "写入配置失败: " + item.name})
 			return
 		}
 	}
 
-	// 最后设置 server_install = true，表示初始化完成
-	if err := config.Set("server_install", "true", user); err != nil {
+	// 最后设置 LFDD_SERVER_INSTALL = true，表示初始化完成
+	if err := env.Set("LFDD_SERVER_INSTALL", "true"); err != nil {
 		log.Printf("❌ [API] 初始化写入 server_install 失败: %v", err)
 		c.JSON(500, InstallResponse{Code: -1, Message: "写入初始化标记失败"})
 		return

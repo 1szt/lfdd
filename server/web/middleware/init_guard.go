@@ -2,10 +2,10 @@
 package middleware
 
 import (
-	"hxzl/config"
 	"net/http"
 	"strings"
 
+	"github.com/1szt/go-pkg/env"
 	"github.com/gin-gonic/gin"
 )
 
@@ -24,7 +24,7 @@ var initFreePrefixes = []string{
 func InitGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 已初始化直接放行
-		if config.Get("server_install").Value == "true" {
+		if env.Get("LFDD_SERVER_INSTALL") == "true" {
 			c.Next()
 			return
 		}

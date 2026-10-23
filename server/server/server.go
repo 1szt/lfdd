@@ -3,7 +3,6 @@ package server
 
 import (
 	"context"
-	"hxzl/config"
 	"hxzl/web"
 	"log"
 	"net"
@@ -11,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/1szt/go-pkg/env"
 )
 
 var (
@@ -33,8 +34,8 @@ func Start() {
 
 // addrFromConfig 从配置读取 ip 和端口，拼出监听地址（端口缺省 9081）
 func addrFromConfig() string {
-	ip := config.Get("server_ip").Value
-	port := config.Get("server_port").Value
+	ip := env.Get("LFDD_SERVER_IP")
+	port := env.Get("LFDD_PORT")
 	if port == "" {
 		port = "9081"
 	}
@@ -44,11 +45,11 @@ func addrFromConfig() string {
 // tlsFromConfig 读取 HTTPS 配置，返回（是否启用, 证书路径, 密钥路径）。
 // 证书或密钥缺任一即视为未启用，回退 HTTP。
 func tlsFromConfig() (enabled bool, cert, key string) {
-	if config.Get("server_https").Value != "true" {
+	if env.Get("LFDD_SERVER_HTTPS") != "true" {
 		return false, "", ""
 	}
-	cert = config.Get("server_cert").Value
-	key = config.Get("server_key").Value
+	cert = env.Get("LFDD_SERVER_CERT")
+	key = env.Get("LFDD_SERVER_KEY")
 	if cert == "" || key == "" {
 		log.Println("⚠️ [Server] 已开启 HTTPS 但证书/密钥未配置，回退 HTTP")
 		return false, "", ""
