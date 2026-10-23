@@ -71,5 +71,7 @@ Get 走 sync.RWMutex 保护的 map 缓存，命中则不查库；未命中查库
 
 # 后续可做（未动）
 
+首个跨模块业务（如用户管理）出现时再设计领域模块：领域层（如 user/）持有业务逻辑与查询导出函数供他人 import，api/user 只做 HTTP 皮；进程内复用走函数调用不走 HTTP，api 子包间仍禁止互相 import
+建 web/resp 统一响应出口（OK/Fail 封装 code+message+data，等接口多了再做）
 config.Get 的缓存目前进程内有效，若未来出现外部改库（绕过 Set）的场景需要加过期时间或刷新入口
 server_https_auto 字段已存在但未实现 ACME 自动签发证书，目前 HTTPS 需手动提供证书路径
