@@ -49,6 +49,10 @@ func Start() {
 		panic("failed to migrate config table: " + err.Error())
 	}
 
+	// 首次启动为缺失的配置项写入默认值（只补缺不覆盖）：
+	// 之后所有 Get/Set 都能查到行，不会出现 record not found 刷屏
+	seedDefaults()
+
 	// 从环境变量中读取配置
 	envPrefix := "LFDD_"
 	configFields := []string{
@@ -74,6 +78,45 @@ func Start() {
 // TableName 设置表名
 func (Config) TableName() string {
 	return "config"
+}
+
+// defaultValues 各配置项的首启默认值（与代码里的空值兜底行为保持一致）
+var defaultValues = map[string]string{
+	"server_ip":         "",     // 空 = 监听所有网卡
+	"server_port":       "9081", // 与 server 模块 addrFromConfig 的缺省一致
+	"server_https":      "false",
+	"server_https_auto": "false",
+	"server_cert":       "", // 安装时填写
+	"server_key":        "",
+	"server_install":    "false", // false/空 都算未初始化
+	"db_type":           "",      // 初始化时由安装页填写
+	"db_path":           "",
+	"db_host":           "",
+	"db_port":           "",
+	"db_name":           "",
+	"db_user":           "",
+	"db_password":       "",
+}
+
+// seedDefaults 为缺失的配置项补写默认值（一次 Find 拿全部已有项，只补缺不覆盖）
+func seedDefaults() {
+	var existing []Config
+	if err := db.Find(&existing).Error; err != nil {
+		log.Printf("⚠️ [Config] 读取现有配置失败: %v", err)
+		return
+	}
+	exist := make(map[string]bool, len(existing))
+	for _, c := range existing {
+		exist[c.Name] = true
+	}
+	for name, value := range defaultValues {
+		if exist[name] {
+			continue
+		}
+		if err := db.Create(&Config{Name: name, Value: value, User: "system"}).Error; err != nil {
+			log.Printf("⚠️ [Config] 写入默认配置 %s 失败: %v", name, err)
+		}
+	}
 }
 
 // Get 读取配置（优先走内存缓存），不存在时返回零值（Value 为空字符串），不视为错误
