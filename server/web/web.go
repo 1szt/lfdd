@@ -2,6 +2,7 @@
 package web
 
 import (
+	"hxzl/web/middleware"
 	"os"
 
 	"github.com/gin-gonic/gin"
@@ -17,8 +18,8 @@ func init() {
 // Engine 全局路由引擎，各业务模块通过它注册自己的路由
 var Engine = gin.New()
 
-// Start 注册全局中间件（Recovery + Logger）
+// Start 注册全局中间件（Logger + Recovery + 初始化检查）
+// 必须在所有业务模块注册路由之前调用（gin 中间件对之后注册的路由才生效）
 func Start() {
-	Engine.Use(gin.Recovery())
-	Engine.Use(gin.Logger())
+	Engine.Use(gin.Logger(), gin.Recovery(), middleware.InitGuard())
 }

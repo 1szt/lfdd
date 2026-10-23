@@ -65,6 +65,10 @@ InstallSubmit 开头检查 server_install == "true"，已初始化直接返回 4
 config 模块内存缓存
 Get 走 sync.RWMutex 保护的 map 缓存，命中则不查库；未命中查库后回填。Set 写库成功后同步 putCache，保证读写一致。
 
+新增 InitGuard 全局初始化检查中间件
+未初始化（server_install != true）时拦截白名单外所有请求，返回 503 + code 40001 + need_install。白名单：/（安装页入口）、/api/install/（安装接口自身）。
+中间件挪入 web/middleware 子包（为上百个中间件做结构准备）：一个中间件一个文件、按域拆子包、web.Start() 唯一装配点、依赖单向（middleware → web 禁止）。演进规则见 web/README.md。
+
 # 后续可做（未动）
 
 config.Get 的缓存目前进程内有效，若未来出现外部改库（绕过 Set）的场景需要加过期时间或刷新入口
