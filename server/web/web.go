@@ -13,5 +13,7 @@ var Engine = gin.New()
 // Start 注册全局中间件（Logger + Recovery + 初始化检查）
 // 必须在所有业务模块注册路由之前调用（gin 中间件对之后注册的路由才生效）
 func Start() {
-	Engine.Use(gin.Logger(), gin.Recovery(), middleware.InitGuard())
+	Engine.Use(gin.Logger())
+	Engine.Use(gin.Recovery())
+	Engine.Use(middleware.InitGuard())
 }
