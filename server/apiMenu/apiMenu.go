@@ -1,15 +1,19 @@
-// Package menu 菜单接口：提供菜品分类与商品数据。
-package menu
+// Package apiMenu 菜单接口：提供菜品分类与商品数据，挂载于 /api/menu。
+package apiMenu
 
 import (
+	"hxzl/web"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Register 注册菜单相关路由（由 api 模块传入路由组）
-func Register(rg *gin.RouterGroup) {
+// Start 注册菜单路由（须在 web.Start 之后调用）
+func Start() {
+	rg := web.Engine.Group("/api")
 	rg.GET("/menu", GetMenu)
+	log.Print("✅ [API] 菜单接口 加载完成！")
 }
 
 // -------- 数据结构 --------

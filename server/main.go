@@ -1,7 +1,9 @@
 package main
 
 import (
-	"hxzl/api"
+	"hxzl/apiInstall"
+	"hxzl/apiMenu"
+	"hxzl/apiTest"
 	"hxzl/db"
 	"hxzl/env"
 	"hxzl/home"
@@ -18,6 +20,8 @@ func main() {
 	db.Start()
 	web.Start()
 	home.Start()
-	api.Start()
+	apiInstall.Start()
+	apiMenu.Start()
+	apiTest.Start()
 	server.Start()
 }

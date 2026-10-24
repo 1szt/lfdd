@@ -1,22 +1,25 @@
-// Package install 安装初始化接口：检查/提交服务器初始化配置。
-package install
+// Package apiInstall 安装初始化接口：检查/提交服务器初始化配置，挂载于 /api/install/*。
+package apiInstall
 
 import (
 	"hxzl/db"
 	"hxzl/server"
+	"hxzl/web"
 	"log"
 
 	"github.com/1szt/go-pkg/env"
 	"github.com/gin-gonic/gin"
 )
 
-// Register 注册安装初始化相关路由（由 api 模块传入路由组）
-func Register(rg *gin.RouterGroup) {
+// Start 注册安装初始化路由（须在 web.Start 之后调用）
+func Start() {
+	rg := web.Engine.Group("/api")
 	rg.GET("/install/check", InstallCheck)
 	rg.POST("/install/submit", InstallSubmit)
+	log.Print("✅ [API] 安装接口 加载完成！")
 }
 
-// -------- 请求/响应结构 --------
+// -------- 请求结构 --------
 
 type InstallRequest struct {
 	ServerIP   string `json:"server_ip"`
