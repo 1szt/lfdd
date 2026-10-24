@@ -1,0 +1,111 @@
+package ws
+
+
+import (
+	"context"
+	"hxzl/web"
+	"log"
+	"sync"
+	"uuid"
+
+	"github.com/coder/websocket"
+	"github.com/gin-gonic/gin"
+)
+
+// Client 一条客户端连接：ID 为分配的唯一标识，mu 保护并发写
+type Client struct {
+	uuID   string
+	Conn *websocket.Conn
+	mu   sync.Mutex
+}
+
+var (
+	mu      sync.Mutex
+	clients = map[string]*Client{}
+)
+
+// Start 加载 WebSocket 模块（注册 /ws 路由）
+func Start() {
+	web.Engine.GET("/ws", handleWebSocket)
+	log.Print("✅ [WS] WebSocket 模块 加载完成！")
+}
+
+// Send 发送消息给指定 id 的客户端
+// id 不存在（已断开）或写入失败时只记日志，不阻塞调用方
+func Send(id string, msg []byte) {
+	mu.Lock()
+	cl := clients[id]
+	mu.Unlock()
+	if cl == nil {
+		log.Printf("⚠️ [WS] 发送失败，客户端不存在: %s", id)
+		return
+	}
+
+	cl.mu.Lock()
+	err := cl.Conn.Write(context.Background(), websocket.MessageText, msg)
+	cl.mu.Unlock()
+	if err != nil {
+		log.Printf("❌ [WS] 写入消息失败 (id=%s): %v", id, err)
+		cl.Conn.CloseNow() // 让读循环退出，由其负责从 map 摘除
+	}
+}
+
+// handleWebSocket 处理 WebSocket 连接：升级、分配 id、注册进连接表
+func handleWebSocket(c *gin.Context) {
+	// 升级 HTTP 为 WebSocket 连接
+	// AcceptOptions 里可以配置跨域，若前后端同域可不传，开发测试建议加上 InsecureSkipVerify: true
+	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{
+		InsecureSkipVerify: true,
+	})
+	if err != nil {
+		log.Printf("❌ [WS] 升级连接失败: %v", err)
+		return
+	}
+
+	// 确保连接在退出时关闭
+	defer conn.CloseNow()
+
+	// 获取 Gin 请求的 Context，用于控制超时或生命周期
+	ctx := c.Request.Context()
+
+	// 分配随机 id 并注册进连接表
+	cl := &Client{
+		uuID: uuid.New().String(), 
+		Conn: conn,
+	}
+	
+	mu.Lock()
+	clients[cl.uuID] = cl
+	mu.Unlock()
+	// 断开时摘除，防泄漏
+	defer func() {
+		mu.Lock()
+		delete(clients, cl.uuID)
+		mu.Unlock()
+	}()
+
+	log.Printf("🔗 [WS] 客户端已连接: %s (id=%s)", c.ClientIP(), cl.uuID)
+
+	// 告知客户端分配到的 id，之后可用 Send(id, ...) 定向推送
+	conn.Write(ctx, websocket.MessageText, []byte(`{"type":"welcome","id":"`+cl.uuID+`"}`))	
+
+	for {
+		// 读取客户端消息
+		typ, data, err := conn.Read(ctx)
+		if err != nil {
+			log.Printf("⚠️ [WS] 客户端断开连接或读取错误: %v", err)
+			break
+		}
+
+		log.Printf("📩 [WS] 收到消息: %s", string(data))
+
+		// 回显消息给客户端 (Echo)
+		cl.mu.Lock()
+		err = conn.Write(ctx, typ, []byte("Server Echo: "+string(data)))
+		cl.mu.Unlock()
+		if err != nil {
+			log.Printf("❌ [WS] 写入消息失败: %v", err)
+			break
+		}
+	}
+}

@@ -11,6 +11,7 @@ import (
 	"hxzl/motd"
 	"hxzl/server"
 	"hxzl/web"
+	// "hxzl/ws"
 )
 
 func main() {
@@ -19,6 +20,7 @@ func main() {
 	logx.Start()
 	db.Start()
 	web.Start()
+	// ws.Start()
 	home.Start()
 	apiInstall.Start()
 	apiMenu.Start()
