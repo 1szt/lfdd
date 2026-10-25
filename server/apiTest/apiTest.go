@@ -1,19 +1,23 @@
-// Package test 热重载测试页面：手动触发 server/db 重载并观察效果。
-package test
+// Package apitest 热重载测试页：手动触发 server/db 重载并观察效果，挂载于 /api/test/*。
+package apitest
 
 import (
 	"hxzl/db"
 	"hxzl/server"
+	"hxzl/web"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
-// Register 注册测试页面路由（由 api 模块传入路由组）
-func Register(rg *gin.RouterGroup) {
+// Start 注册测试页路由（须在 web.Start 之后调用）
+func Start() {
+	rg := web.Engine.Group("/api")
 	rg.GET("/test/reload", page)
 	rg.GET("/test/reload/status", status)
 	rg.POST("/test/reload/apply", apply)
+	log.Print("✅ [APITEST] 热重载测试页 加载完成！")
 }
 
 // page 测试页面

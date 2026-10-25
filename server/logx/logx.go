@@ -11,26 +11,31 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Start 初始化日志输出。必须第一个调用（env.Start 之前）。
-// 直接从 data/.env 读 LFDD_LOG_PATH（不依赖 env.Start 补全），保证后续模块日志都能落盘。
-// 控制台始终输出；配置了 LFDD_LOG_PATH 则同时追加写入该文件。
-func Start() {
-	var w io.Writer = os.Stdout
+// defaultPath 默认日志文件路径（LFDD_LOG_PATH 未配置时使用）
+const defaultPath = "data/log/lfdd.log"
 
-	if path := env.Get("LFDD_LOG_PATH"); path != "" {
-		f, err := openLogFile(path)
-		if err != nil {
-			log.Printf("⚠️ [Log] 打开日志文件失败，仅输出控制台: %v", err)
-		} else {
-			w = io.MultiWriter(os.Stdout, f)
-		}
+// Start 初始化日志输出。必须第一个调用（env.Start 之前）。
+// 直接从 data/.env 读 LFDD_LOG_PATH（不依赖 env.Start 补全），为空则使用默认路径，
+// 保证后续模块日志都能落盘。控制台始终输出，同时追加写入日志文件。
+func Start() {
+	path := env.Get("LFDD_LOG_PATH")
+	if path == "" {
+		path = defaultPath
+	}
+
+	var w io.Writer = os.Stdout
+	f, err := openLogFile(path)
+	if err != nil {
+		log.Printf("⚠️ [LogX] 打开日志文件失败，仅输出控制台: %v", err)
+	} else {
+		w = io.MultiWriter(os.Stdout, f)
 	}
 
 	log.SetOutput(w)      // 标准库 log（业务日志）
 	gin.DefaultWriter = w // gin 访问日志
 	gin.DefaultErrorWriter = w
 
-	log.Println("✅ [Log] 日志模块 初始化完成")
+	log.Println("✅ [LogX] 日志模块 初始化完成")
 }
 
 // openLogFile 创建目录并以追加模式打开日志文件；启动时超限则轮转一次。

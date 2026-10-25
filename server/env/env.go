@@ -16,16 +16,16 @@ func Start() {
 
 	env.Add("LFDD_DEBUG", "false", "调试模式（true 时 gin 输出路由注册等调试日志，false 静默）")
 
-	env.Add("LFDD_LOG_PATH", "data/log/lfdd.log", "日志文件路径（空则仅输出控制台，如 data/log/lfdd.log）")
+	env.Add("LFDD_LOG_PATH", "data/log/lfdd.log", "日志文件路径（空则使用默认 data/log/lfdd.log）")
 
 	env.Add("LFDD_SERVER_HTTPS", "true", "是否启用 HTTPS（true/false）")
 	env.Add("LFDD_SERVER_HTTPS_AUTO", "true", "是否自签名证书（true/false）")
 	env.Add("LFDD_SERVER_CERT", "", "HTTPS 证书路径")
 	env.Add("LFDD_SERVER_KEY", "", "HTTPS 私钥路径")
-	env.Add("LFDD_SERVER_INSTALL", "false", "是否已完成初始化安装（true/false）")
+	env.Add("LFDD_SERVER_INSTALL", "true", "是否已完成初始化安装（true/false）")
 
-	env.Add("LFDD_DB_TYPE", "", "数据库类型（sqlite/pgsql/mysql）")
-	env.Add("LFDD_DB_PATH", "", "SQLite 数据库文件路径")
+	env.Add("LFDD_DB_TYPE", "sqlite", "数据库类型（sqlite/pgsql/mysql）")
+	env.Add("LFDD_DB_PATH", "data/db/lfdd.db", "SQLite 数据库文件路径")
 	env.Add("LFDD_DB_HOST", "", "数据库主机地址")
 	env.Add("LFDD_DB_PORT", "", "数据库端口")
 	env.Add("LFDD_DB_NAME", "", "数据库名")

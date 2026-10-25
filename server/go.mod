@@ -1,9 +1,10 @@
 module hxzl
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/1szt/go-pkg v0.0.1
+	github.com/coder/websocket v1.8.15
 	github.com/gin-gonic/gin v1.12.0
 	gorm.io/driver/mysql v1.6.0
 	gorm.io/driver/postgres v1.6.3
