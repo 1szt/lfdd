@@ -1,7 +1,7 @@
-# Home 模块
+# API 模块
 
-Home 模块负责注册主页路由。
+API 模块负责注册 API 接口路由。
 
 # 接口列表
 
-GET / 返回主页内容
+GET /api 返回 API 正常运行状态hello api

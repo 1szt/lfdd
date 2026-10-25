@@ -8,12 +8,12 @@ logx.Start() 初始化日志输出
 
 # 调用顺序
 
-必须在 `env.Start()` 之前第一个调用（main 中紧跟 `motd.Start()` / `env.Start()`）。它直接从 `data/.env` 读 `LFDD_LOG_PATH`（不依赖 env 补全），保证后续模块日志都能落盘。
+在 `env.Start()` 之前调用（main 中紧跟 `motd.Start()`）。它直接从 `data/.env` 读 `LFDD_LOG_PATH`（不依赖 env 补全），为空则使用默认路径 `data/log/lfdd.log`，保证后续模块日志都能落盘。
 
 # 行为
 
 - 控制台始终输出
-- 配置了 `LFDD_LOG_PATH`（默认 `data/log/lfdd.log`）则同时追加写入该文件
+- 同时追加写入日志文件，路径为 `LFDD_LOG_PATH`（未配置或为空时用默认 `data/log/lfdd.log`）
 - 打开文件失败时降级为仅控制台，并打印告警
 - 同时接管 `log.SetOutput`、`gin.DefaultWriter`、`gin.DefaultErrorWriter`
 

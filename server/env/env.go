@@ -16,7 +16,7 @@ func Start() {
 
 	env.Add("LFDD_DEBUG", "false", "调试模式（true 时 gin 输出路由注册等调试日志，false 静默）")
 
-	env.Add("LFDD_LOG_PATH", "data/log/lfdd.log", "日志文件路径（空则仅输出控制台，如 data/log/lfdd.log）")
+	env.Add("LFDD_LOG_PATH", "data/log/lfdd.log", "日志文件路径（空则使用默认 data/log/lfdd.log）")
 
 	env.Add("LFDD_SERVER_HTTPS", "true", "是否启用 HTTPS（true/false）")
 	env.Add("LFDD_SERVER_HTTPS_AUTO", "true", "是否自签名证书（true/false）")

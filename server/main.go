@@ -16,8 +16,8 @@ import (
 
 func main() {
 	motd.Start()
-	env.Start()
 	logx.Start()
+	env.Start()
 	db.Start()
 	web.Start()
 	api.Start()
