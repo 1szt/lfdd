@@ -5,6 +5,7 @@ import (
 	"hxzl/apiinstall"
 	"hxzl/apimenu"
 	"hxzl/apitest"
+	"hxzl/apiauth"
 	"hxzl/apiws"
 	"hxzl/db"
 	"hxzl/env"
@@ -23,6 +24,7 @@ func main() {
 	api.Start()
 	apiws.Start()
 	apiinstall.Start()
+	apiauth.Start()
 	apimenu.Start()
 	apitest.Start()
 	server.Start()
