@@ -4,6 +4,7 @@ import (
 	"hxzl/apiInstall"
 	"hxzl/apiMenu"
 	"hxzl/apiTest"
+	"hxzl/apiWS"
 	"hxzl/db"
 	"hxzl/env"
 	"hxzl/home"
@@ -11,7 +12,6 @@ import (
 	"hxzl/motd"
 	"hxzl/server"
 	"hxzl/web"
-	// "hxzl/ws"
 )
 
 func main() {
@@ -20,8 +20,8 @@ func main() {
 	logx.Start()
 	db.Start()
 	web.Start()
-	// ws.Start()
 	home.Start()
+	apiWS.Start()
 	apiInstall.Start()
 	apiMenu.Start()
 	apiTest.Start()

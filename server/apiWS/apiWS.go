@@ -1,4 +1,4 @@
-package ws
+package apiWS
 
 import (
 	"hxzl/web"
@@ -10,7 +10,7 @@ import (
 
 // Start 加载 WebSocket 模块（注册 /ws 路由）
 func Start() {
-	web.Engine.GET("/ws", handleWebSocket)
+	web.Engine.GET("/api/ws", handleWebSocket)
 	log.Print("✅ [WS] WebSocket 模块 加载完成！")
 }
 
