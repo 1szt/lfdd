@@ -1,5 +1,5 @@
-// Package apiMenu 菜单接口：提供菜品分类与商品数据，挂载于 /api/menu。
-package apiMenu
+// Package apimenu 菜单接口：提供菜品分类与商品数据，挂载于 /api/menu。
+package apimenu
 
 import (
 	"hxzl/web"

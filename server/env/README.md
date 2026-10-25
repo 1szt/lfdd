@@ -50,4 +50,4 @@ env.Start() 初始化配置（须在 motd 之后、其他模块之前调用）
 
 # 读取方式
 
-其他模块通过 `github.com/1szt/go-pkg/env` 的 `env.Get(key)` 读取、`env.Set(key, value)` 写入（apiInstall 初始化时使用）。注意 `logx.Start()` 在本模块之后直接从 `data/.env` 读 `LFDD_LOG_PATH`，不依赖 `env.Add` 补全。
+其他模块通过 `github.com/1szt/go-pkg/env` 的 `env.Get(key)` 读取、`env.Set(key, value)` 写入（apiinstall 初始化时使用）。注意 `logx.Start()` 在本模块之前执行，直接从 `data/.env` 读 `LFDD_LOG_PATH`，不依赖 `env.Add` 补全。

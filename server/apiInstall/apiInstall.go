@@ -1,5 +1,5 @@
-// Package apiInstall 安装初始化接口：检查/提交服务器初始化配置，挂载于 /api/install/*。
-package apiInstall
+// Package apiinstall 安装初始化接口：检查/提交服务器初始化配置，挂载于 /api/install/*。
+package apiinstall
 
 import (
 	"hxzl/db"

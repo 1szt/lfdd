@@ -1,5 +1,5 @@
-// Package apiTest 热重载测试页：手动触发 server/db 重载并观察效果，挂载于 /api/test/*。
-package apiTest
+// Package apitest 热重载测试页：手动触发 server/db 重载并观察效果，挂载于 /api/test/*。
+package apitest
 
 import (
 	"hxzl/db"

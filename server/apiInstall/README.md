@@ -1,4 +1,4 @@
-# apiInstall 模块
+# apiinstall 模块
 
 安装初始化接口：检查/提交服务器初始化配置，挂载于 `/api/install/*`。须在 `web.Start()` 之后调用。
 

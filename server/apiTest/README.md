@@ -1,4 +1,4 @@
-# apiTest 模块
+# apitest 模块
 
 热重载测试页：手动触发 server/db 重载并观察效果，挂载于 `/api/test/*`。须在 `web.Start()` 之后调用。
 
