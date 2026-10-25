@@ -1,24 +1,24 @@
 # API 使用文档
 
-后端全部 HTTP 接口的使用说明（请求/响应结构、初始化流程、拦截器约定）。
+后端全部 HTTP 接口的使用说明（请求/响应结构、初始化流程、拦截器约定）。s
 
-- 基础地址：`http://{server_ip}:{server_port}`（默认 `9081`）
+- 基础地址：`https://{server_ip}:{server_port}`（默认 `9081`）
 - 所有接口为 JSON 交互（除主页/探活的纯文本接口）
 - 未初始化时，除下方"白名单"外的所有接口都会被全局中间件拦截（见 [初始化流程](#2-初始化流程)）
 
----
+***
 
 ## 1. 接口总览
 
-| 方法 | 路径 | 说明 | 未初始化时 |
-| --- | --- | --- | --- |
-| GET | `/` | 主页探活，返回 `Hello, World!` | 放行（白名单） |
-| GET | `/api/` | API 探活，返回 `API` | 拦截 |
-| GET | `/api/install/check` | 检查是否需要初始化 | 放行（白名单） |
-| POST | `/api/install/submit` | 提交初始化配置 | 放行（白名单） |
-| GET | `/api/menu` | 菜单数据（当前为 mock） | 拦截 |
+| 方法   | 路径                    | 说明                      | 未初始化时   |
+| ---- | --------------------- | ----------------------- | ------- |
+| GET  | `/`                   | 主页探活，返回 `Hello, World!` | 放行（白名单） |
+| GET  | `/api/`               | API 探活，返回 `API`         | 拦截      |
+| GET  | `/api/install/check`  | 检查是否需要初始化               | 放行（白名单） |
+| POST | `/api/install/submit` | 提交初始化配置                 | 放行（白名单） |
+| GET  | `/api/menu`           | 菜单数据（当前为 mock）          | 拦截      |
 
----
+***
 
 ## 2. 初始化流程
 
@@ -69,18 +69,18 @@ POST /api/install/submit ──► 200 初始化完成
 
 **请求体**（`application/json`）：
 
-| 字段 | 类型 | 必填 | 说明 |
-| --- | --- | --- | --- |
-| server_ip | string | 是 | 服务监听 IP（如 `0.0.0.0`） |
-| server_port | string | 是 | 服务端口（如 `9081`） |
-| db_type | string | 是 | 数据库类型：`sqlite` / `mysql` / `postgres` |
-| db_path | string | sqlite 必填 | sqlite 文件路径 |
-| db_host | string | mysql/pg 必填 | 数据库主机 |
-| db_port | string | mysql/pg 必填 | 数据库端口 |
-| db_name | string | mysql/pg 必填 | 数据库名 |
-| db_user | string | mysql/pg 必填 | 数据库用户 |
-| db_password | string | mysql/pg 必填 | 数据库密码 |
-| user | string | 是 | 操作者（写入配置的 user 字段） |
+| 字段           | 类型     | 必填          | 说明                                    |
+| ------------ | ------ | ----------- | ------------------------------------- |
+| server\_ip   | string | 是           | 服务监听 IP（如 `0.0.0.0`）                  |
+| server\_port | string | 是           | 服务端口（如 `9081`）                        |
+| db\_type     | string | 是           | 数据库类型：`sqlite` / `mysql` / `postgres` |
+| db\_path     | string | sqlite 必填   | sqlite 文件路径                           |
+| db\_host     | string | mysql/pg 必填 | 数据库主机                                 |
+| db\_port     | string | mysql/pg 必填 | 数据库端口                                 |
+| db\_name     | string | mysql/pg 必填 | 数据库名                                  |
+| db\_user     | string | mysql/pg 必填 | 数据库用户                                 |
+| db\_password | string | mysql/pg 必填 | 数据库密码                                 |
+| user         | string | 是           | 操作者（写入配置的 user 字段）                    |
 
 **成功响应**（HTTP 200）：
 
@@ -119,7 +119,7 @@ POST /api/install/submit ──► 200 初始化完成
 }
 ```
 
----
+***
 
 ## 3. 未初始化拦截
 
@@ -146,7 +146,7 @@ POST /api/install/submit ──► 200 初始化完成
 - 与 `GET /api/install/check` 的判断逻辑复用同一个 `need_install` 字段
 - 拦截发生在业务逻辑之前，接口本身不需要重复判断初始化状态
 
----
+***
 
 ## 4. GET /api/menu
 
@@ -176,21 +176,21 @@ POST /api/install/submit ──► 200 初始化完成
 }
 ```
 
----
+***
 
 ## 5. 业务码约定
 
-| code | 含义 |
-| --- | --- |
-| 0 | 成功（install 系列） |
-| 200 | 成功（menu 系列，沿用 HTTP 风格） |
-| 400 | 参数错误 / 重复提交 |
-| 40001 | 未初始化拦截 |
-| -1 | 服务端错误（写库、配置失败） |
+| code  | 含义                     |
+| ----- | ---------------------- |
+| 0     | 成功（install 系列）         |
+| 200   | 成功（menu 系列，沿用 HTTP 风格） |
+| 400   | 参数错误 / 重复提交            |
+| 40001 | 未初始化拦截                 |
+| -1    | 服务端错误（写库、配置失败）         |
 
 > 注意：`40001` 只出现在**被拦截**的响应里，业务接口自身不会返回它。后续新增业务码在 [REFACTOR.md](file:///c:/Users/jingxuanwei/Desktop/code/lfdd/server/REFACTOR.md) 集中登记。
 
----
+***
 
 ## 6. 接口文档维护方式
 
