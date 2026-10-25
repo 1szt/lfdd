@@ -2,6 +2,8 @@
 
 DB 模块负责数据库连接管理，支持 SQLite、MySQL、PostgreSQL（ORM 底层为 gorm）。
 
+SQLite 连接前会自动创建 LFDD_DB_PATH 所在目录（父目录不存在时报 "unable to open database file"）。
+
 # 使用方法
 
 db.DB 全局数据库实例

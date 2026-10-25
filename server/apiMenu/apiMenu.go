@@ -13,7 +13,7 @@ import (
 func Start() {
 	rg := web.Engine.Group("/api")
 	rg.GET("/menu", GetMenu)
-	log.Print("✅ [API] 菜单接口 加载完成！")
+	log.Print("✅ [APIMENU] 菜单接口 加载完成！")
 }
 
 // -------- 数据结构 --------

@@ -17,7 +17,7 @@ func Start() {
 	rg.GET("/test/reload", page)
 	rg.GET("/test/reload/status", status)
 	rg.POST("/test/reload/apply", apply)
-	log.Print("✅ [API] 热重载测试页 加载完成！")
+	log.Print("✅ [APITEST] 热重载测试页 加载完成！")
 }
 
 // page 测试页面

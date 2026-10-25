@@ -16,7 +16,7 @@ func Start() {
 	rg := web.Engine.Group("/api")
 	rg.GET("/install/check", InstallCheck)
 	rg.POST("/install/submit", InstallSubmit)
-	log.Print("✅ [API] 安装接口 加载完成！")
+	log.Print("✅ [APINSTALLINSTALL] 安装接口 加载完成！")
 }
 
 // -------- 请求结构 --------

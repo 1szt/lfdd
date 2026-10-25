@@ -4,6 +4,8 @@ package db
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/1szt/go-pkg/env"
 
@@ -122,6 +124,13 @@ func connect() {
 	switch dbType {
 	case "sqlite", "sqlite3":
 		path := env.Get("LFDD_DB_PATH")
+		// 自动创建数据库文件所在目录，避免 "unable to open database file"
+		if dir := filepath.Dir(path); dir != "." && dir != "" {
+			if err := os.MkdirAll(dir, 0755); err != nil {
+				log.Printf("❌ [DB] 创建数据库目录 %s 失败: %v", dir, err)
+				return
+			}
+		}
 		dialector = sqlite.Open(path)
 
 	case "pgsql", "postgres", "postgresql":

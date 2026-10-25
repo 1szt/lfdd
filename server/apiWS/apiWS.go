@@ -11,7 +11,7 @@ import (
 // Start 加载 WebSocket 模块（注册 /ws 路由）
 func Start() {
 	web.Engine.GET("/api/ws", handleWebSocket)
-	log.Print("✅ [WS] WebSocket 模块 加载完成！")
+	log.Print("✅ [APIWS] WebSocket 模块 加载完成！")
 }
 
 
@@ -36,7 +36,7 @@ func upgrade(c *gin.Context, token, ip string) {
 		InsecureSkipVerify: true,
 	})
 	if err != nil {
-		log.Printf("❌ [WS] 升级失败: %v", err)
+		log.Printf("❌ [APIWS] 升级失败: %v", err)
 		c.JSON(400, gin.H{"error": "升级失败"})
 		return
 	}
