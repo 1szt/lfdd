@@ -1,6 +1,6 @@
 module hxzl
 
-go 1.27.2
+go 1.27.3
 
 require (
 	github.com/1szt/go-pkg v0.0.1
