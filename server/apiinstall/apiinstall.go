@@ -15,8 +15,8 @@ import (
 // 将apiinstall模块的路由注册改为使用命名路由组，保持与已完成重构模块的一致性
 func Start() {
 	group := web.Engine.Group("/api/install")
-	group.GET("/check", InstallCheck)
-	group.POST("/submit", InstallSubmit)
+	group.GET("/check", GetCheck)
+	group.POST("/submit", PostSubmit)	
 	log.Print("✅ [APINSTALL] 安装接口 加载完成！")
 }
 
@@ -35,9 +35,9 @@ type InstallRequest struct {
 }
 
 // -------- 接口1: 检查是否已初始化 --------
-// InstallCheck 检查服务器是否已初始化
+// GetCheck 检查服务器是否已初始化
 // data.need_install=true 表示需要初始化
-func InstallCheck(c *gin.Context) {
+func GetCheck(c *gin.Context) {
 	install := env.Get("LFDD_SERVER_INSTALL")
 
 	// 不存在 / 空 / false → 需要安装
@@ -54,7 +54,7 @@ func InstallCheck(c *gin.Context) {
 // InstallSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
 // sqlite 必填 server_ip/server_port/db_type/db_path，
 // 其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password
-func InstallSubmit(c *gin.Context) {
+func PostSubmit(c *gin.Context) {
 	// 防重复提交：已初始化完成则直接拒绝，避免覆盖线上配置
 	if env.Get("LFDD_SERVER_INSTALL") == "true" {
 		c.JSON(400, gin.H{

@@ -10,24 +10,26 @@ import (
 
 // Start 加载 WebSocket 模块（注册 /ws 路由）
 func Start() {
+	// 注册 WebSocket 路由
 	group := web.Engine.Group("/api/ws")
-	group.GET("/", handleWebSocket)
+	group.GET("/", GetWs)
 	log.Print("✅ [APIWS] WebSocket 模块 加载完成！")
 }
 
-func handleWebSocket(c *gin.Context) {
+// GetWs WebSocket 路由处理函数
+func GetWs(c *gin.Context) {
 	// 获取客户端真实 IP
 	clientIP := c.ClientIP()
 	// 获取客户端请求参数 token
 	token := c.Query("token")
 	// 升级ws
-	upgrade(c, token, clientIP)
+	Upgrade(c, token, clientIP)
 
 }
 
-// 升级ws函数
+// Upgrade 升级ws函数
 // 传入token ip地址
-func upgrade(c *gin.Context, token, ip string) {
+func Upgrade(c *gin.Context, token, ip string) {
 	// 升级 HTTP 为 WebSocket 连接
 	// AcceptOptions 里可以配置跨域，若前后端同域可不传，开发测试建议加上 InsecureSkipVerify: true
 	conn, err := websocket.Accept(c.Writer, c.Request, &websocket.AcceptOptions{

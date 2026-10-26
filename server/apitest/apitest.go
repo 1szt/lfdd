@@ -13,20 +13,20 @@ import (
 
 // Start 注册测试页路由（须在 web.Start 之后调用）
 func Start() {
-	rg := web.Engine.Group("/api")
-	rg.GET("/test/reload", page)
-	rg.GET("/test/reload/status", status)
-	rg.POST("/test/reload/apply", apply)
+	group := web.Engine.Group("/api")
+	group.GET("/test/reload", GetPage)
+	group.GET("/test/reload/status", GetStatus)
+	group.POST("/test/reload/apply", PostApply)
 	log.Print("✅ [APITEST] 热重载测试页 加载完成！")
 }
 
-// page 测试页面
-func page(c *gin.Context) {
+// GetPage 测试页面
+func GetPage(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageHTML))
 }
 
-// status 返回当前服务与数据库状态
-func status(c *gin.Context) {
+// GetStatus 返回当前服务与数据库状态
+func GetStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code": 0,
 		"data": gin.H{
@@ -35,9 +35,8 @@ func status(c *gin.Context) {
 		},
 	})
 }
-
-// apply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
-func apply(c *gin.Context) {
+// PostApply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
+func PostApply(c *gin.Context) {
 	go server.Reload()
 	go db.Reload()
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "已触发重载，请观察日志与状态变化"})
