@@ -1,10 +1,18 @@
 package apiauth
 
 import (
-	"github.com/gin-gonic/gin"
 	"hxzl/web"
 	"log"
+
+	"github.com/gin-gonic/gin"
 )
+
+type LoginReq struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Phone    string `json:"phone"`
+	Password string `json:"password"`
+}
 
 func Start() {
 	group := web.Engine.Group("/api/auth")
