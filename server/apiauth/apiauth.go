@@ -9,6 +9,8 @@ import (
 func Start() {
 	group := web.Engine.Group("/api/auth")
 	group.POST("/login", PostLogin)
+	group.POST("/logout", PostLogout)
+	group.POST("/refresh", PostRefresh)
 	group.POST("/register", PostRegister)
 
 	log.Print("✅ [APIAUTH] 认证接口 加载完成！")
@@ -43,5 +45,17 @@ func PostLogin(c *gin.Context) {
 func PostRegister(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "注册成功",
+	})
+}
+
+func PostLogout(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"message": "退出成功",
+	})
+}
+
+func PostRefresh(c *gin.Context) {
+	c.JSON(200, gin.H{
+		"message": "刷新成功",
 	})
 }
