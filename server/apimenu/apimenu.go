@@ -11,8 +11,8 @@ import (
 
 // Start 注册菜单路由（须在 web.Start 之后调用）
 func Start() {
-	rg := web.Engine.Group("/api")
-	rg.GET("/menu", GetMenu)
+	group := web.Engine.Group("/api")
+	group.GET("/menu", GetMenu)
 	log.Print("✅ [APIMENU] 菜单接口 加载完成！")
 }
 

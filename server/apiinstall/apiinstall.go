@@ -12,11 +12,12 @@ import (
 )
 
 // Start 注册安装初始化路由（须在 web.Start 之后调用）
+// 将apiinstall模块的路由注册改为使用命名路由组，保持与已完成重构模块的一致性
 func Start() {
-	rg := web.Engine.Group("/api")
-	rg.GET("/install/check", InstallCheck)
-	rg.POST("/install/submit", InstallSubmit)
-	log.Print("✅ [APINSTALLINSTALL] 安装接口 加载完成！")
+	group := web.Engine.Group("/api/install")
+	group.GET("/check", InstallCheck)
+	group.POST("/submit", InstallSubmit)
+	log.Print("✅ [APINSTALL] 安装接口 加载完成！")
 }
 
 // -------- 请求结构 --------

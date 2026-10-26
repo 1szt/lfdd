@@ -7,8 +7,8 @@ import (
 )
 
 func Start() {
-	auth := web.Engine.Group("/api/auth")
-	auth.POST("/login", Login)
+	group := web.Engine.Group("/api/auth")
+	group.POST("/login", Login)
 	log.Print("✅ [APIAUTH] 认证接口 加载完成！")
 }
 

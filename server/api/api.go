@@ -8,8 +8,8 @@ import (
 )
 
 func Start() {
-	web.Engine.GET("/api", api)
-
+	group := web.Engine.Group("/api")
+	group.GET("/", api)
 	log.Print("✅ [API] API模块 加载完成！")
 }
 

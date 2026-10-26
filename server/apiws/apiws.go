@@ -10,10 +10,10 @@ import (
 
 // Start 加载 WebSocket 模块（注册 /ws 路由）
 func Start() {
-	web.Engine.GET("/api/ws", handleWebSocket)
+	group := web.Engine.Group("/api/ws")
+	group.GET("/", handleWebSocket)
 	log.Print("✅ [APIWS] WebSocket 模块 加载完成！")
 }
-
 
 func handleWebSocket(c *gin.Context) {
 	// 获取客户端真实 IP
@@ -22,8 +22,6 @@ func handleWebSocket(c *gin.Context) {
 	token := c.Query("token")
 	// 升级ws
 	upgrade(c, token, clientIP)
-
-
 
 }
 
