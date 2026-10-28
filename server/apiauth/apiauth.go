@@ -1,6 +1,7 @@
 package apiauth
 
 import (
+	"hxzl/service"
 	"hxzl/web"
 	"log"
 
@@ -66,8 +67,17 @@ func PostRegister(c *gin.Context) {
 		return
 	}
 
+	user, err := service.Register(req.Username, req.Email, req.Password)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
 	c.JSON(200, gin.H{
 		"message": "注册成功",
+		"user":    user,
 	})
 }
 

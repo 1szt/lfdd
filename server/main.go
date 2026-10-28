@@ -2,10 +2,10 @@ package main
 
 import (
 	"hxzl/api"
+	"hxzl/apiauth"
 	"hxzl/apiinstall"
 	"hxzl/apimenu"
 	"hxzl/apitest"
-	"hxzl/apiauth"
 	"hxzl/apiws"
 	"hxzl/db"
 	"hxzl/env"
