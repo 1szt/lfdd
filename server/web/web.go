@@ -2,7 +2,7 @@
 package web
 
 import (
-	"hxzl/web/middleware"
+	"hxzl/middleware"
 	"log"
 
 	"github.com/1szt/go-pkg/env"

@@ -10,6 +10,7 @@ import (
 	"hxzl/db"
 	"hxzl/env"
 	"hxzl/logx"
+	"hxzl/model"
 	"hxzl/motd"
 	"hxzl/server"
 	"hxzl/web"
@@ -20,6 +21,7 @@ func main() {
 	logx.Start()
 	env.Start()
 	db.Start()
+	model.Start()
 	web.Start()
 	api.Start()
 	apiws.Start()

@@ -40,7 +40,7 @@ func PostLogin(c *gin.Context) {
 	// 如果user=1 密码等于1
 	if req.Username == "1" && req.Password == "1" {
 		c.JSON(200, gin.H{
-			"message": "登录成功",
+			"token": "1",
 		})
 		return
 	}
@@ -51,12 +51,28 @@ func PostLogin(c *gin.Context) {
 }
 
 func PostRegister(c *gin.Context) {
+
+	var req struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+	}
+
+	err := c.ShouldBindJSON(&req)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
 	c.JSON(200, gin.H{
 		"message": "注册成功",
 	})
 }
 
 func PostLogout(c *gin.Context) {
+
 	c.JSON(200, gin.H{
 		"message": "退出成功",
 	})

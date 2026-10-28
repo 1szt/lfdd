@@ -125,7 +125,7 @@ POST /api/install/submit ──► 200 初始化完成
 
 **触发条件**：`server_install != true` 且路径不在白名单内。
 
-**白名单**（见 [middleware.go](file:///c:/Users/jingxuanwei/Desktop/code/lfdd/server/web/middleware/init_guard.go)）：
+**白名单**（见 [init_guard.go](file:///c:/Users/jingxuanwei/Desktop/code/lfdd/server/middleware/init_guard.go)）：
 
 - `/` —— 安装页入口（静态页）
 - 前缀 `/api/install/` —— 初始化接口自身
