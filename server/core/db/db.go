@@ -1,4 +1,5 @@
 // Package db 数据库模块：持有全局 DB 实例，负责数据库连接的建立/关闭/重连（ORM 底层为 gorm）。
+// 表结构定义与迁移在 model 模块。
 package db
 
 import (
