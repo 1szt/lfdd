@@ -1,30 +1,12 @@
-package apiauth
+package handler
 
 import (
 	"hxzl/service"
-	"hxzl/web"
-	"log"
 
 	"github.com/gin-gonic/gin"
 )
 
-type LoginReq struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Phone    string `json:"phone"`
-	Password string `json:"password"`
-}
-
-func Start() {
-	group := web.Engine.Group("/api/auth")
-	group.POST("/login", PostLogin)
-	group.POST("/logout", PostLogout)
-	group.POST("/refresh", PostRefresh)
-	group.POST("/register", PostRegister)
-
-	log.Print("✅ [APIAUTH] 认证接口 加载完成！")
-}
-
+// PostLogin 登录
 func PostLogin(c *gin.Context) {
 	// 获取请求参数
 	var req struct {
@@ -51,6 +33,7 @@ func PostLogin(c *gin.Context) {
 	})
 }
 
+// PostRegister 注册
 func PostRegister(c *gin.Context) {
 
 	var req struct {
@@ -81,6 +64,7 @@ func PostRegister(c *gin.Context) {
 	})
 }
 
+// PostLogout 退出
 func PostLogout(c *gin.Context) {
 
 	c.JSON(200, gin.H{
@@ -88,6 +72,7 @@ func PostLogout(c *gin.Context) {
 	})
 }
 
+// PostRefresh 刷新 token
 func PostRefresh(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "刷新成功",

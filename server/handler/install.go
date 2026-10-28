@@ -1,24 +1,13 @@
-// Package apiinstall 安装初始化接口：检查/提交服务器初始化配置，挂载于 /api/install/*。
-package apiinstall
+package handler
 
 import (
-	"hxzl/db"
-	"hxzl/server"
-	"hxzl/web"
+	"hxzl/core/db"
+	"hxzl/core/server"
 	"log"
 
 	"github.com/1szt/go-pkg/env"
 	"github.com/gin-gonic/gin"
 )
-
-// Start 注册安装初始化路由（须在 web.Start 之后调用）
-// 将apiinstall模块的路由注册改为使用命名路由组，保持与已完成重构模块的一致性
-func Start() {
-	group := web.Engine.Group("/api/install")
-	group.GET("/check", GetCheck)
-	group.POST("/submit", PostSubmit)	
-	log.Print("✅ [APINSTALL] 安装接口 加载完成！")
-}
 
 // -------- 请求结构 --------
 
@@ -51,7 +40,7 @@ func GetCheck(c *gin.Context) {
 }
 
 // -------- 接口2: 提交初始化信息 --------
-// InstallSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
+// PostSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
 // sqlite 必填 server_ip/server_port/db_type/db_path，
 // 其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password
 func PostSubmit(c *gin.Context) {

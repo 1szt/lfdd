@@ -4,7 +4,7 @@ package service
 
 import (
 	"errors"
-	"hxzl/db"
+	"hxzl/core/db"
 	"hxzl/model"
 
 	"golang.org/x/crypto/bcrypt"

@@ -1,24 +1,13 @@
-// Package apitest 热重载测试页：手动触发 server/db 重载并观察效果，挂载于 /api/test/*。
-package apitest
+// 热重载测试页：手动触发 server/db 重载并观察效果，挂载于 /api/test/*。
+package handler
 
 import (
-	"hxzl/db"
-	"hxzl/server"
-	"hxzl/web"
-	"log"
+	"hxzl/core/db"
+	"hxzl/core/server"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
-
-// Start 注册测试页路由（须在 web.Start 之后调用）
-func Start() {
-	group := web.Engine.Group("/api")
-	group.GET("/test/reload", GetPage)
-	group.GET("/test/reload/status", GetStatus)
-	group.POST("/test/reload/apply", PostApply)
-	log.Print("✅ [APITEST] 热重载测试页 加载完成！")
-}
 
 // GetPage 测试页面
 func GetPage(c *gin.Context) {
@@ -35,6 +24,7 @@ func GetStatus(c *gin.Context) {
 		},
 	})
 }
+
 // PostApply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
 func PostApply(c *gin.Context) {
 	go server.Reload()

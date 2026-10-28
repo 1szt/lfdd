@@ -1,20 +1,11 @@
-package apiws
+package handler
 
 import (
-	"hxzl/web"
 	"log"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 )
-
-// Start 加载 WebSocket 模块（注册 /ws 路由）
-func Start() {
-	// 注册 WebSocket 路由
-	group := web.Engine.Group("/api/ws")
-	group.GET("/", GetWs)
-	log.Print("✅ [APIWS] WebSocket 模块 加载完成！")
-}
 
 // GetWs WebSocket 路由处理函数
 func GetWs(c *gin.Context) {

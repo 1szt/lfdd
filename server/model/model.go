@@ -2,7 +2,7 @@
 package model
 
 import (
-	"hxzl/db"
+	"hxzl/core/db"
 	"log"
 	"math/rand/v2"
 	"time"
