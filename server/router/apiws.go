@@ -5,7 +5,7 @@ import (
 	"hxzl/handler"
 )
 
-// registerWSRoutes WebSocket
-func registerWSRoutes() {
+// apiws WebSocket	
+func apiws() {
 	web.Engine.Group("/api/ws").GET("/", handler.GetWs)
 }

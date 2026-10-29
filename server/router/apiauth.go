@@ -5,8 +5,8 @@ import (
 	"hxzl/handler"
 )
 
-// registerAuthRoutes 认证接口
-func registerAuthRoutes() {
+// apiauth 认证接口
+func apiauth() {
 	auth := web.Engine.Group("/api/auth")
 	auth.POST("/login", handler.PostLogin)
 	auth.POST("/logout", handler.PostLogout)

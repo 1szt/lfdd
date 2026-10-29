@@ -5,7 +5,7 @@ import (
 	"hxzl/handler"
 )
 
-// registerMenuRoutes 菜单接口
-func registerMenuRoutes() {
+// apimenu 菜单接口
+func apimenu() {
 	web.Engine.Group("/api").GET("/menu", handler.GetMenu)
 }

@@ -5,8 +5,8 @@ import (
 	"hxzl/handler"
 )
 
-// registerTestRoutes 热重载测试页
-func registerTestRoutes() {
+// apiitest 热重载测试页
+func apiitest() {
 	test := web.Engine.Group("/api")
 	test.GET("/test/reload", handler.GetPage)
 	test.GET("/test/reload/status", handler.GetStatus)

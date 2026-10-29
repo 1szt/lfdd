@@ -5,7 +5,7 @@ import (
 	"hxzl/handler"
 )
 
-// registerAPIRoutes API 根路径探活
-func registerAPIRoutes() {
+// api API 根路径探活
+func api() {
 	web.Engine.Group("/api").GET("/", handler.GetAPI)
 }

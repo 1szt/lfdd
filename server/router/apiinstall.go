@@ -5,8 +5,8 @@ import (
 	"hxzl/handler"
 )
 
-// registerInstallRoutes 安装初始化接口
-func registerInstallRoutes() {
+// apinstall 安装初始化接口
+func apinstall() {
 	install := web.Engine.Group("/api/install")
 	install.GET("/check", handler.GetCheck)
 	install.POST("/submit", handler.PostSubmit)
