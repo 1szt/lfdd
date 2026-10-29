@@ -1,5 +1,5 @@
-// Package router 路由层：统一注册全部 HTTP 路由，handler 只提供处理函数。
-// 路由一功能一文件；下线某功能 = 删除对应文件 + 删除 Start 中一行调用。
+// Package handler HTTP 处理层：路由注册与处理函数同包，一功能一文件。
+// 下线某功能 = 删除对应文件 + 删除 Start 中一行调用。
 package router
 
 import (
@@ -11,8 +11,9 @@ func Start() {
 	api()
 	apiauth()
 	apimenu()
-	apinstall()
-	apiitest()
+	apiinstall()
+	apitest()
 	apiws()
-	log.Print("✅ [ROUTER] 路由注册 加载完成！")
+
+	log.Print("✅ [HANDLER] 路由注册 加载完成！")
 }

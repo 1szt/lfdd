@@ -5,7 +5,7 @@
 - 基础地址：`https://{server_ip}:{server_port}`（默认 `9081`）
 - 所有接口为 JSON 交互（除探活/测试页的纯文本/HTML 接口）
 - 未初始化时，除下方"白名单"外的所有接口都会被全局中间件拦截（见 [初始化流程](#2-初始化流程)）
-- 路由注册统一在 `router/`，处理函数在 `handler/`（一功能一文件）
+- 路由注册与处理函数同在 `handler/`（一功能一文件：注册 + 处理）
 
 ***
 
@@ -14,17 +14,17 @@
 | 方法 | 路径 | 说明 | 未初始化时 | 处理函数 | 所在文件 |
 | ---- | --------------------- | ----------------------- | ------- | ---- | ---- |
 | GET  | `/api/`               | API 探活，返回 `Hello, API!`    | 拦截 | GetAPI | api.go |
-| POST | `/api/auth/login`     | 登录                      | 拦截 | PostLogin | auth.go |
-| POST | `/api/auth/register`  | 注册（落库）                  | 拦截 | PostRegister | auth.go |
-| POST | `/api/auth/logout`    | 退出                      | 拦截 | PostLogout | auth.go |
-| POST | `/api/auth/refresh`   | 刷新 token                | 拦截 | PostRefresh | auth.go |
-| GET  | `/api/install/check`  | 检查是否需要初始化               | 放行（白名单） | GetCheck | install.go |
-| POST | `/api/install/submit` | 提交初始化配置                 | 放行（白名单） | PostSubmit | install.go |
-| GET  | `/api/menu`           | 菜单数据（当前为 mock）          | 拦截 | GetMenu | menu.go |
-| GET  | `/api/test/reload`    | 热重载测试页（HTML）            | 拦截 | GetPage | test.go |
-| GET  | `/api/test/reload/status` | 服务与数据库状态            | 拦截 | GetStatus | test.go |
-| POST | `/api/test/reload/apply` | 触发 server + db 重载     | 拦截 | PostApply | test.go |
-| GET  | `/api/ws/`            | WebSocket 连接（query 带 token） | 拦截 | GetWs | ws.go |
+| POST | `/api/auth/login`     | 登录                      | 拦截 | PostLogin | apiauth.go |
+| POST | `/api/auth/register`  | 注册（落库）                  | 拦截 | PostRegister | apiauth.go |
+| POST | `/api/auth/logout`    | 退出                      | 拦截 | PostLogout | apiauth.go |
+| POST | `/api/auth/refresh`   | 刷新 token                | 拦截 | PostRefresh | apiauth.go |
+| GET  | `/api/install/check`  | 检查是否需要初始化               | 放行（白名单） | GetCheck | apiinstall.go |
+| POST | `/api/install/submit` | 提交初始化配置                 | 放行（白名单） | PostSubmit | apiinstall.go |
+| GET  | `/api/menu`           | 菜单数据（当前为 mock）          | 拦截 | GetMenu | apimenu.go |
+| GET  | `/api/test/reload`    | 热重载测试页（HTML）            | 拦截 | GetPage | apitest.go |
+| GET  | `/api/test/reload/status` | 服务与数据库状态            | 拦截 | GetStatus | apitest.go |
+| POST | `/api/test/reload/apply` | 触发 server + db 重载     | 拦截 | PostApply | apitest.go |
+| GET  | `/api/ws/`            | WebSocket 连接（query 带 token） | 拦截 | GetWs | apiws.go |
 
 ***
 
