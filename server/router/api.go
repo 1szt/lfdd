@@ -8,7 +8,8 @@ import (
 
 // api API 根路径探活
 func api() {
-	web.Engine.Group("/api").GET("/", GetAPI)
+	Group := web.Engine.Group("/api")
+	Group.GET("/", GetAPI)
 }
 
 // GetAPI API 根路径探活
