@@ -73,8 +73,8 @@ var menuData = []CategoryItem{
 // GetMenu 获取菜单
 func GetMenu(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"code":       200,
-		"message":    "success",
+		"code":       0,
+		"message":    "ok",
 		"categories": menuData,
 	})
 }

@@ -24,9 +24,11 @@ func GetPage(c *gin.Context) {
 }
 
 // GetStatus 返回当前服务与数据库状态
+// 响应格式：{ "code": 0, "message": "ok", "data": { "server": {...}, "db": {...} } }
 func GetStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"code": 0,
+		"code":    0,
+		"message": "ok",
 		"data": gin.H{
 			"server": server.Status(),
 			"db":     db.Status(),

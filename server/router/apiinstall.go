@@ -12,9 +12,9 @@ import (
 
 // apiinstall 安装初始化接口
 func apiinstall() {
-	install := web.Engine.Group("/api/install")
-	install.GET("/check", GetCheck)
-	install.POST("/submit", PostSubmit)
+	Group := web.Engine.Group("/api/install")
+	Group.GET("/check", GetCheck)
+	Group.POST("/submit", PostSubmit)
 }
 
 // -------- 请求结构 --------
@@ -53,18 +53,18 @@ func GetCheck(c *gin.Context) {
 // 其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password
 func PostSubmit(c *gin.Context) {
 	// 防重复提交：已初始化完成则直接拒绝，避免覆盖线上配置
-	if env.Get("LFDD_SERVER_INSTALL") == "true" {
+		if env.Get("LFDD_SERVER_INSTALL") == "true" {
 		c.JSON(400, gin.H{
-			"code":    -1,
+			"code":    400,
 			"message": "服务器已初始化，不能重复提交",
 		})
 		return
 	}
 
 	var req InstallRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+		if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
-			"code":    -1,
+			"code":    400,
 			"message": "参数错误",
 		})
 		return
@@ -101,7 +101,7 @@ func PostSubmit(c *gin.Context) {
 	if err := env.Set("LFDD_SERVER_INSTALL", "true"); err != nil {
 		log.Printf("❌ [API] 初始化写入 server_install 失败: %v", err)
 		c.JSON(500, gin.H{
-			"code":    -1,
+			"code":    500,
 			"message": "写入初始化标记失败",
 		})
 		return
