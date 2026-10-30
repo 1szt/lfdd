@@ -10,22 +10,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type ApiTest struct {
+}
+
 // apitest 热重载测试页
 func apitest() {
+	ApiTest := ApiTest{}
 	api := web.Engine.Group("/api")
-	api.GET("/test/reload", GetPage)
-	api.GET("/test/reload/status", GetStatus)
-	api.POST("/test/reload/apply", PostApply)
+	api.GET("/test/reload", ApiTest.GetPage)
+	api.GET("/test/reload/status", ApiTest.GetStatus)
+	api.POST("/test/reload/apply", ApiTest.PostApply)
 }
 
 // GetPage 测试页面
-func GetPage(c *gin.Context) {
+func (ApiTest) GetPage(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageHTML))
 }
 
 // GetStatus 返回当前服务与数据库状态
 // 响应格式：{ "code": 0, "message": "ok", "data": { "server": {...}, "db": {...} } }
-func GetStatus(c *gin.Context) {
+func (ApiTest) GetStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "ok",
@@ -37,7 +41,7 @@ func GetStatus(c *gin.Context) {
 }
 
 // PostApply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
-func PostApply(c *gin.Context) {
+func (ApiTest) PostApply(c *gin.Context) {
 	go server.Reload()
 	go db.Reload()
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "已触发重载，请观察日志与状态变化"})

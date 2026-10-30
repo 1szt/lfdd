@@ -7,17 +7,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// apiauth 认证接口
-func apiauth() {
-	auth := web.Engine.Group("/api/auth")
-	auth.POST("/login", PostLogin)
-	auth.POST("/logout", PostLogout)
-	auth.POST("/refresh", PostRefresh)
-	auth.POST("/register", PostRegister)
+type ApiAuth struct {
 }
 
-// PostLogin 登录
-func PostLogin(c *gin.Context) {
+// apiauth 认证接口
+func apiauth() {
+	ApiAuth := ApiAuth{}
+	group := web.Engine.Group("/api/auth")
+	group.POST("/login", ApiAuth.Login)
+	group.POST("/logout", ApiAuth.Logout)
+	group.POST("/refresh", ApiAuth.Refresh)
+	group.POST("/register", ApiAuth.Register)
+}
+
+// Login 登录
+func (ApiAuth) Login(c *gin.Context) {
 	// 获取请求参数
 	var req struct {
 		Username string `json:"username"`
@@ -43,8 +47,8 @@ func PostLogin(c *gin.Context) {
 	})
 }
 
-// PostRegister 注册
-func PostRegister(c *gin.Context) {
+// Register 注册
+func (ApiAuth) Register(c *gin.Context) {
 
 	var req struct {
 		Username string `json:"username"`
@@ -74,16 +78,16 @@ func PostRegister(c *gin.Context) {
 	})
 }
 
-// PostLogout 退出
-func PostLogout(c *gin.Context) {
+// Logout 退出
+func (ApiAuth) Logout(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"message": "退出成功",
 	})
 }
 
-// PostRefresh 刷新 token
-func PostRefresh(c *gin.Context) {
+// Refresh 刷新 token
+func (ApiAuth) Refresh(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "刷新成功",
 	})

@@ -9,14 +9,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// apiws WebSocket
-func apiws() {
-	Group := web.Engine.Group("/api/ws")
-	Group.GET("/", GetWs)
+type ApiWs struct {
 }
 
-// GetWs WebSocket 路由处理函数
-func GetWs(c *gin.Context) {
+// apiws WebSocket
+func apiws() {
+	ApiWs := ApiWs{}
+	Group := web.Engine.Group("/api/ws")
+	Group.GET("/", ApiWs.Ws)
+}
+
+// Ws WebSocket 路由处理函数
+func (ApiWs) Ws(c *gin.Context) {
 	// 获取客户端真实 IP
 	clientIP := c.ClientIP()
 	// 获取客户端请求参数 token

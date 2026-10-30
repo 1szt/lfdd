@@ -6,13 +6,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// api API 根路径探活
-func api() {
-	Group := web.Engine.Group("/api")
-	Group.GET("/", GetAPI)
+type Api struct {
 }
 
-// GetAPI API 根路径探活
-func GetAPI(c *gin.Context) {
+// api API 根路径探活
+func api() {
+	Api := Api{}	
+	Group := web.Engine.Group("/api")
+	Group.GET("/", Api.API)
+}
+
+// API API 根路径探活
+func (Api) API(c *gin.Context) {
 	c.String(200, "Hello, API!")
 }
