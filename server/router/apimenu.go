@@ -1,10 +1,22 @@
-package handler
+package router
 
 import (
 	"net/http"
 
+	"hxzl/core/web"
+
 	"github.com/gin-gonic/gin"
 )
+
+type ApiMenu struct {
+}
+
+// apimenu 菜单接口
+func apimenu() {
+	ApiMenu := ApiMenu{}
+	Group := web.Engine.Group("/api")
+	Group.GET("/menu", ApiMenu.GetMenu)
+}
 
 // -------- 数据结构 --------
 
@@ -64,10 +76,10 @@ var menuData = []CategoryItem{
 }
 
 // GetMenu 获取菜单
-func GetMenu(c *gin.Context) {
+func (ApiMenu) GetMenu(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
-		"code":       200,
-		"message":    "success",
+		"code":       0,
+		"message":    "ok",
 		"categories": menuData,
 	})
 }

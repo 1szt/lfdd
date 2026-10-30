@@ -1,14 +1,26 @@
-package handler
+package router
 
 import (
 	"log"
+
+	"hxzl/core/web"
 
 	"github.com/coder/websocket"
 	"github.com/gin-gonic/gin"
 )
 
-// GetWs WebSocket 路由处理函数
-func GetWs(c *gin.Context) {
+type ApiWs struct {
+}
+
+// apiws WebSocket
+func apiws() {
+	ApiWs := ApiWs{}
+	Group := web.Engine.Group("/api/ws")
+	Group.GET("/", ApiWs.Ws)
+}
+
+// Ws WebSocket 路由处理函数
+func (ApiWs) Ws(c *gin.Context) {
 	// 获取客户端真实 IP
 	clientIP := c.ClientIP()
 	// 获取客户端请求参数 token

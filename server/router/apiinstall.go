@@ -1,32 +1,30 @@
-package handler
+package router
 
 import (
 	"hxzl/core/db"
 	"hxzl/core/server"
+	"hxzl/core/web"
 	"log"
 
 	"github.com/1szt/go-pkg/env"
 	"github.com/gin-gonic/gin"
 )
 
-// -------- 请求结构 --------
+type ApiInstall struct {
+}
 
-type InstallRequest struct {
-	ServerIP   string `json:"server_ip"`
-	ServerPort string `json:"server_port"`
-	DBType     string `json:"db_type"`
-	DBPath     string `json:"db_path"`
-	DBHost     string `json:"db_host"`
-	DBPort     string `json:"db_port"`
-	DBName     string `json:"db_name"`
-	DBUser     string `json:"db_user"`
-	DBPassword string `json:"db_password"`
+// apiinstall 安装初始化接口
+func apiinstall() {
+	ApiInstall := ApiInstall{}
+	Group := web.Engine.Group("/api/install")
+	Group.GET("/check", ApiInstall.GetCheck)
+	Group.POST("/submit", ApiInstall.PostSubmit)
 }
 
 // -------- 接口1: 检查是否已初始化 --------
 // GetCheck 检查服务器是否已初始化
 // data.need_install=true 表示需要初始化
-func GetCheck(c *gin.Context) {
+func (ApiInstall) GetCheck(c *gin.Context) {
 	install := env.Get("LFDD_SERVER_INSTALL")
 
 	// 不存在 / 空 / false → 需要安装
@@ -43,20 +41,34 @@ func GetCheck(c *gin.Context) {
 // PostSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
 // sqlite 必填 server_ip/server_port/db_type/db_path，
 // 其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password
-func PostSubmit(c *gin.Context) {
+// PostSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
+func (ApiInstall) PostSubmit(c *gin.Context) {
+	// -------- 请求结构 --------
+	// InstallRequest 初始化请求参数
+	var req struct {
+		ServerIP   string `json:"server_ip"`
+		ServerPort string `json:"server_port"`
+		DBType     string `json:"db_type"`
+		DBPath     string `json:"db_path"`
+		DBHost     string `json:"db_host"`
+		DBPort     string `json:"db_port"`
+		DBName     string `json:"db_name"`
+		DBUser     string `json:"db_user"`
+		DBPassword string `json:"db_password"`
+	}
+
 	// 防重复提交：已初始化完成则直接拒绝，避免覆盖线上配置
 	if env.Get("LFDD_SERVER_INSTALL") == "true" {
 		c.JSON(400, gin.H{
-			"code":    -1,
+			"code":    400,
 			"message": "服务器已初始化，不能重复提交",
 		})
 		return
 	}
 
-	var req InstallRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
-			"code":    -1,
+			"code":    400,
 			"message": "参数错误",
 		})
 		return
@@ -93,7 +105,7 @@ func PostSubmit(c *gin.Context) {
 	if err := env.Set("LFDD_SERVER_INSTALL", "true"); err != nil {
 		log.Printf("❌ [API] 初始化写入 server_install 失败: %v", err)
 		c.JSON(500, gin.H{
-			"code":    -1,
+			"code":    500,
 			"message": "写入初始化标记失败",
 		})
 		return
