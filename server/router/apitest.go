@@ -10,26 +10,26 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ApiTest struct {
+type ApiTestHandler struct {
 }
 
 // apitest 热重载测试页
-func apitest() {
-	ApiTest := ApiTest{}
+func apiTestRouter() {
+	apiTestHandler := &ApiTestHandler{}
 	api := web.Engine.Group("/api")
-	api.GET("/test/reload", ApiTest.GetPage)
-	api.GET("/test/reload/status", ApiTest.GetStatus)
-	api.POST("/test/reload/apply", ApiTest.PostApply)
+	api.GET("/test/reload", apiTestHandler.Page)
+	api.GET("/test/reload/status", apiTestHandler.Status)
+	api.POST("/test/reload/apply", apiTestHandler.Apply)
 }
 
-// GetPage 测试页面
-func (ApiTest) GetPage(c *gin.Context) {
+// Page 测试页面
+func (h *ApiTestHandler) Page(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageHTML))
 }
 
-// GetStatus 返回当前服务与数据库状态
+// Status 返回当前服务与数据库状态
 // 响应格式：{ "code": 0, "message": "ok", "data": { "server": {...}, "db": {...} } }
-func (ApiTest) GetStatus(c *gin.Context) {
+func (h *ApiTestHandler) Status(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "ok",
@@ -40,8 +40,8 @@ func (ApiTest) GetStatus(c *gin.Context) {
 	})
 }
 
-// PostApply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
-func (ApiTest) PostApply(c *gin.Context) {
+// Apply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
+func (h *ApiTestHandler) Apply(c *gin.Context) {
 	go server.Reload()
 	go db.Reload()
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "已触发重载，请观察日志与状态变化"})

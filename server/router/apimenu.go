@@ -8,14 +8,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ApiMenu struct {
+type ApiMenuHandler struct {
 }
 
 // apimenu 菜单接口
-func apimenu() {
-	ApiMenu := ApiMenu{}
-	Group := web.Engine.Group("/api")
-	Group.GET("/menu", ApiMenu.GetMenu)
+func apiMenuRouter() {
+	apiMenuHandler := &ApiMenuHandler{}
+	group := web.Engine.Group("/api")
+	group.GET("/menu", apiMenuHandler.Menu)
 }
 
 // -------- 数据结构 --------
@@ -75,8 +75,8 @@ var menuData = []CategoryItem{
 	},
 }
 
-// GetMenu 获取菜单
-func (ApiMenu) GetMenu(c *gin.Context) {
+// Menu 获取菜单
+func (h *ApiMenuHandler) Menu(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":       0,
 		"message":    "ok",

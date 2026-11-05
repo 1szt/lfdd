@@ -10,21 +10,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type ApiInstall struct {
+type ApiInstallHandler struct {
 }
 
 // apiinstall 安装初始化接口
-func apiinstall() {
-	ApiInstall := ApiInstall{}
-	Group := web.Engine.Group("/api/install")
-	Group.GET("/check", ApiInstall.GetCheck)
-	Group.POST("/submit", ApiInstall.PostSubmit)
+func apiInstallRouter() {
+	apiInstallHandler := &ApiInstallHandler{}
+	group := web.Engine.Group("/api/install")
+	group.GET("/check", apiInstallHandler.Check)
+	group.POST("/submit", apiInstallHandler.Submit)
 }
 
 // -------- 接口1: 检查是否已初始化 --------
-// GetCheck 检查服务器是否已初始化
+// Check 检查服务器是否已初始化
 // data.need_install=true 表示需要初始化
-func (ApiInstall) GetCheck(c *gin.Context) {
+//更新Check方法接收者类型为ApiInstallHandler
+func (h *ApiInstallHandler) Check(c *gin.Context) {
 	install := env.Get("LFDD_SERVER_INSTALL")
 
 	// 不存在 / 空 / false → 需要安装
@@ -38,11 +39,11 @@ func (ApiInstall) GetCheck(c *gin.Context) {
 }
 
 // -------- 接口2: 提交初始化信息 --------
-// PostSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
+// Submit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
 // sqlite 必填 server_ip/server_port/db_type/db_path，
 // 其余数据库类型必填 server_ip/server_port/db_type/db_host/db_port/db_name/db_user/db_password
-// PostSubmit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
-func (ApiInstall) PostSubmit(c *gin.Context) {
+// Submit 提交初始化配置（写入配置并热重载数据库连接与监听端口）
+func (ApiInstallHandler) Submit(c *gin.Context) {
 	// -------- 请求结构 --------
 	// InstallRequest 初始化请求参数
 	var req struct {

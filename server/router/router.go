@@ -8,12 +8,12 @@ import (
 
 // Start 注册全部路由（须在 web.Start 之后、server.Start 之前调用）
 func Start() {
-	api()
-	apiauth()
-	apimenu()
-	apiinstall()
-	apitest()
-	apiws()
+	apiRouter()
+	apiAuthRouter()
+	apiMenuRouter()
+	apiInstallRouter()
+	apiTestRouter()
+	apiWsRouter()
 
 	log.Print("✅ [HANDLER] 路由注册 加载完成！")
 }
