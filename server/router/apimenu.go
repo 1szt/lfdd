@@ -13,7 +13,7 @@ type ApiMenuHandler struct {
 
 // apimenu 菜单接口
 func apiMenuRouter() {
-	apiMenuHandler := ApiMenuHandler{}
+	apiMenuHandler := &ApiMenuHandler{}
 	group := web.Engine.Group("/api")
 	group.GET("/menu", apiMenuHandler.Menu)
 }
@@ -76,7 +76,7 @@ var menuData = []CategoryItem{
 }
 
 // Menu 获取菜单
-func (ApiMenuHandler) Menu(c *gin.Context) {
+func (h *ApiMenuHandler) Menu(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":       0,
 		"message":    "ok",

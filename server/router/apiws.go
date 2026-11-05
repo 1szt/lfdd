@@ -14,13 +14,13 @@ type ApiWsHandler struct {
 
 // apiws WebSocket
 func apiWsRouter() {
-	apiWsHandler := ApiWsHandler{}
+	apiWsHandler := &ApiWsHandler{}
 	Group := web.Engine.Group("/api/ws")
 	Group.GET("/", apiWsHandler.Ws)
 }
 
 // Ws WebSocket 路由处理函数
-func (ApiWsHandler) Ws(c *gin.Context) {
+func (h *ApiWsHandler) Ws(c *gin.Context) {
 	// 获取客户端真实 IP
 	clientIP := c.ClientIP()
 	// 获取客户端请求参数 token

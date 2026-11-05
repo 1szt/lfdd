@@ -12,7 +12,7 @@ type ApiAuthHandler struct {
 
 // apiauth 认证接口
 func apiAuthRouter() {
-	apiAuthHandler := ApiAuthHandler{}
+	apiAuthHandler := &ApiAuthHandler{}
 	group := web.Engine.Group("/api/auth")
 	group.POST("/login", apiAuthHandler.Login)
 	group.POST("/logout", apiAuthHandler.Logout)
@@ -21,7 +21,7 @@ func apiAuthRouter() {
 }
 
 // Login 登录
-func (ApiAuthHandler) Login(c *gin.Context) {
+func (h *ApiAuthHandler) Login(c *gin.Context) {
 	// 获取请求参数
 	var req struct {
 		Username string `json:"username"`
@@ -48,7 +48,7 @@ func (ApiAuthHandler) Login(c *gin.Context) {
 }
 
 // Register 注册
-func (ApiAuthHandler) Register(c *gin.Context) {
+func (h *ApiAuthHandler) Register(c *gin.Context) {
 
 	var req service.Auth
 
@@ -75,7 +75,7 @@ func (ApiAuthHandler) Register(c *gin.Context) {
 }
 
 // Logout 退出
-func (ApiAuthHandler) Logout(c *gin.Context) {
+func (h *ApiAuthHandler) Logout(c *gin.Context) {
 
 	c.JSON(200, gin.H{
 		"message": "退出成功",
@@ -83,7 +83,7 @@ func (ApiAuthHandler) Logout(c *gin.Context) {
 }
 
 // Refresh 刷新 token
-func (ApiAuthHandler) Refresh(c *gin.Context) {
+func (h *ApiAuthHandler) Refresh(c *gin.Context) {
 	c.JSON(200, gin.H{
 		"message": "刷新成功",
 	})

@@ -15,7 +15,7 @@ type ApiInstallHandler struct {
 
 // apiinstall 安装初始化接口
 func apiInstallRouter() {
-	apiInstallHandler := ApiInstallHandler{}
+	apiInstallHandler := &ApiInstallHandler{}
 	group := web.Engine.Group("/api/install")
 	group.GET("/check", apiInstallHandler.Check)
 	group.POST("/submit", apiInstallHandler.Submit)
@@ -25,7 +25,7 @@ func apiInstallRouter() {
 // Check 检查服务器是否已初始化
 // data.need_install=true 表示需要初始化
 //更新Check方法接收者类型为ApiInstallHandler
-func (ApiInstallHandler) Check(c *gin.Context) {
+func (h *ApiInstallHandler) Check(c *gin.Context) {
 	install := env.Get("LFDD_SERVER_INSTALL")
 
 	// 不存在 / 空 / false → 需要安装

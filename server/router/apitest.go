@@ -15,7 +15,7 @@ type ApiTestHandler struct {
 
 // apitest 热重载测试页
 func apiTestRouter() {
-	apiTestHandler := ApiTestHandler{}
+	apiTestHandler := &ApiTestHandler{}
 	api := web.Engine.Group("/api")
 	api.GET("/test/reload", apiTestHandler.Page)
 	api.GET("/test/reload/status", apiTestHandler.Status)
@@ -23,13 +23,13 @@ func apiTestRouter() {
 }
 
 // Page 测试页面
-func (ApiTestHandler) Page(c *gin.Context) {
+func (h *ApiTestHandler) Page(c *gin.Context) {
 	c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(pageHTML))
 }
 
 // Status 返回当前服务与数据库状态
 // 响应格式：{ "code": 0, "message": "ok", "data": { "server": {...}, "db": {...} } }
-func (ApiTestHandler) Status(c *gin.Context) {
+func (h *ApiTestHandler) Status(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"code":    0,
 		"message": "ok",
@@ -41,7 +41,7 @@ func (ApiTestHandler) Status(c *gin.Context) {
 }
 
 // Apply 触发重载：先返回响应再异步重载（Shutdown 会等待在途请求，同步调用会阻塞到超时）
-func (ApiTestHandler) Apply(c *gin.Context) {
+func (h *ApiTestHandler) Apply(c *gin.Context) {
 	go server.Reload()
 	go db.Reload()
 	c.JSON(http.StatusOK, gin.H{"code": 0, "message": "已触发重载，请观察日志与状态变化"})
