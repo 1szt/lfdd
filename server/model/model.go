@@ -13,10 +13,14 @@ func Start() {
 		return
 	}
 
-	if err := db.DB.AutoMigrate(
+	// 1. 将所有需要迁移的模型放入一个切片中
+	models := []any{
 		&User{},
 		&Session{},
-	); err != nil {
+	}
+
+	// 2. 调用 AutoMigrate 方法迁移所有模型
+	if err := db.DB.AutoMigrate(models...); err != nil {
 		log.Printf("❌ [MODEL] 表结构迁移失败: %v", err)
 		return
 	}
