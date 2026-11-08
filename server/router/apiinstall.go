@@ -24,7 +24,7 @@ func apiInstallRouter() {
 // -------- 接口1: 检查是否已初始化 --------
 // Check 检查服务器是否已初始化
 // data.need_install=true 表示需要初始化
-//更新Check方法接收者类型为ApiInstallHandler
+// 更新Check方法接收者类型为ApiInstallHandler
 func (h *ApiInstallHandler) Check(c *gin.Context) {
 	install := env.Get("LFDD_SERVER_INSTALL")
 

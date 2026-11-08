@@ -36,27 +36,29 @@ func (h *ApiAuthHandler) Register(c *gin.Context) {
 	err := c.ShouldBindJSON(&req)
 	if err != nil {
 		c.JSON(400, gin.H{
+			"err":     400,
 			"message": "请求参数错误",
 		})
 		return
 	}
 
-	var auth = service.Auth{
+	token, err := service.Register(service.RegisterInput{
 		Username: req.Username,
 		Email:    req.Email,
 		Password: req.Password,
-	}
-	token, err := auth.Register()
+		IP:       c.ClientIP(),
+		Device:   c.GetHeader("User-Agent"),
+	})
 	if err != nil {
 		c.JSON(500, gin.H{
+			"err":     500,
 			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(200, gin.H{
-		"message": "注册成功",
-		"token":   token,
+		"token": token,
 	})
 }
 
