@@ -10,7 +10,7 @@ import (
 )
 
 // Auth 登录鉴权中间件：解析 Authorization: Bearer <token> → 校验会话 →
-// 通过后把 userID、token 写入上下文（handler 用 GetUserID / c.GetString("token") 取），
+// 通过后把 userID、token 写入上下文（handler 用 c.GetInt64("userID") / c.GetString("token") 取），
 // 未通过返回对应状态码并中断请求。
 func Auth() gin.HandlerFunc {
 	return func(c *gin.Context) {
