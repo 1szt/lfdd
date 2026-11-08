@@ -18,6 +18,7 @@ func Start() {
 		&User{},
 		&Session{},
 		&Menu{},
+		&Goods{},
 	}
 
 	// 2. 调用 AutoMigrate 方法迁移所有模型
