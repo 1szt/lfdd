@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"errors"
 	"strings"
 
 	"hxzl/service"
@@ -22,13 +21,8 @@ func Auth() gin.HandlerFunc {
 
 		userID, err := service.SessionUserID(token)
 		if err != nil {
-			code := 500
-			var be *service.APIError
-			if errors.As(err, &be) {
-				code = be.Code
-			}
-			c.AbortWithStatusJSON(code, gin.H{
-				"err":     code,
+			c.JSON(401, gin.H{
+				"err":     401,
 				"message": err.Error(),
 			})
 			return
