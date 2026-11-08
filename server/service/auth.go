@@ -197,6 +197,26 @@ func Refresh(token string) (string, error) {
 	return newTok, nil
 }
 
+// SessionUserID 校验会话 token 并返回所属用户 ID（供中间件调用）
+// token 缺失/无效/过期返回 401 业务错误
+func SessionUserID(token string) (int64, error) {
+	if token == "" {
+		return 0, unauthorized("缺少 token")
+	}
+	if db.DB == nil {
+		return 0, errors.New("数据库未连接")
+	}
+	var session model.Session
+	if err := db.DB.Where("token = ? AND expires_at > ?", token, time.Now()).
+		First(&session).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, unauthorized("会话不存在或已过期")
+		}
+		return 0, fmt.Errorf("查询会话失败: %w", err)
+	}
+	return session.UserID, nil
+}
+
 // validateRegisterInput 校验并规范化入参：去除首尾空白，邮箱统一转小写（与 model.User 约定一致）
 func validateRegisterInput(in *AuthInput) error {
 	in.Username = strings.TrimSpace(in.Username)

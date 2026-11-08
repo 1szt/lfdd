@@ -2,9 +2,9 @@ package router
 
 import (
 	"errors"
-	"strings"
 
 	"hxzl/core/web"
+	"hxzl/middleware"
 	"hxzl/service"
 
 	"github.com/gin-gonic/gin"
@@ -13,13 +13,13 @@ import (
 type ApiAuthHandler struct {
 }
 
-// apiauth 认证接口
+// apiauth 认证接口：login/register 公开，logout/refresh 经 Auth 中间件解析 token
 func apiAuthRouter() {
 	apiAuthHandler := &ApiAuthHandler{}
 	group := web.Engine.Group("/api/auth")
 	group.POST("/login", apiAuthHandler.Login)
-	group.POST("/logout", apiAuthHandler.Logout)
-	group.POST("/refresh", apiAuthHandler.Refresh)
+	group.POST("/logout", middleware.Auth(), apiAuthHandler.Logout)
+	group.POST("/refresh", middleware.Auth(), apiAuthHandler.Refresh)
 	group.POST("/register", apiAuthHandler.Register)
 }
 
@@ -34,19 +34,6 @@ func writeError(c *gin.Context, err error) {
 		"err":     code,
 		"message": err.Error(),
 	})
-}
-
-// tokenFromRequest 取 token：优先 Authorization: Bearer <token>，其次请求体 token 字段
-func tokenFromRequest(c *gin.Context) string {
-	if auth := c.GetHeader("Authorization"); strings.HasPrefix(auth, "Bearer ") {
-		return strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
-	}
-	// 头里没有再从请求体取（body 为空时忽略绑定错误）
-	var req struct {
-		Token string `json:"token"`
-	}
-	_ = c.ShouldBindJSON(&req)
-	return req.Token
 }
 
 // Login 登录
@@ -113,9 +100,9 @@ func (h *ApiAuthHandler) Register(c *gin.Context) {
 	})
 }
 
-// Logout 退出
+// Logout 退出（token 由 Auth 中间件解析并放入上下文）
 func (h *ApiAuthHandler) Logout(c *gin.Context) {
-	if err := service.Logout(tokenFromRequest(c)); err != nil {
+	if err := service.Logout(c.GetString("token")); err != nil {
 		writeError(c, err)
 		return
 	}
@@ -127,7 +114,7 @@ func (h *ApiAuthHandler) Logout(c *gin.Context) {
 
 // Refresh 刷新 token（旧 token 作废，返回新 token）
 func (h *ApiAuthHandler) Refresh(c *gin.Context) {
-	token, err := service.Refresh(tokenFromRequest(c))
+	token, err := service.Refresh(c.GetString("token"))
 	if err != nil {
 		writeError(c, err)
 		return
