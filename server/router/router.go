@@ -10,10 +10,6 @@ import (
 func Start() {
 	apiRouter()
 	apiAuthRouter()
-	apiMenuRouter()
-	apiInstallRouter()
-	apiTestRouter()
-	apiWsRouter()
 
-	log.Print("✅ [HANDLER] 路由注册 加载完成！")
+	log.Print("✅ [Router] 路由注册 加载完成！")
 }
