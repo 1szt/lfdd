@@ -3,8 +3,6 @@ package middleware
 import (
 	"strings"
 
-	"hxzl/service"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,16 +17,6 @@ func Auth() gin.HandlerFunc {
 			token = strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
 		}
 
-		userID, err := service.SessionUserID(token)
-		if err != nil {
-			c.JSON(401, gin.H{
-				"err":     401,
-				"message": err.Error(),
-			})
-			return
-		}
-
-		c.Set("userID", userID)
 		c.Set("token", token)
 		c.Next()
 	}
