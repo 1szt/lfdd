@@ -11,5 +11,5 @@ func Start() {
 	apiRouter()
 	apiAuthRouter()
 
-	log.Print("✅ [router] 路由注册 加载完成！")
+	log.Print("✅ [Router] 路由注册 加载完成！")
 }
