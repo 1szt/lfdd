@@ -243,7 +243,7 @@
                 还没有添加打印机，先搜索并点击下方设备添加
               </q-item-section>
             </q-item>
-            <q-item v-for="p in printers" :key="p.id">
+            <q-item v-for="p in printers" :key="p.conn + p.id">
               <q-item-section avatar>
                 <q-icon
                   :name="p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
@@ -253,7 +253,8 @@
               <q-item-section>
                 <q-item-label>{{ p.name }}</q-item-label>
                 <q-item-label caption>
-                  {{ p.id }} · {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
+                  {{ p.conn === "spp" ? "传统" : "低功耗" }} · {{ p.id }} ·
+                  {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -1006,7 +1007,7 @@ function openEdit(p: SavedPrinter) {
 function saveDev() {
   const name = devForm.name.trim() || "小票机";
   if (devForm.editing) {
-    updatePrinter(devForm.id, { name, encoding: devForm.encoding });
+    updatePrinter(devForm.id, devForm.conn, { name, encoding: devForm.encoding });
   } else {
     savePrinter({ id: devForm.id, name, conn: devForm.conn, encoding: devForm.encoding });
   }
@@ -1019,7 +1020,7 @@ function confirmRemovePrinter(p: SavedPrinter) {
     title: "删除打印机",
     message: `确定删除「${p.name}」？`,
     cancel: true
-  }).onOk(() => removePrinter(p.id));
+  }).onOk(() => removePrinter(p.id, p.conn));
 }
 
 // 测试打印：按设备连接方式与编码发测试小票

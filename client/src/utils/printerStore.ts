@@ -25,21 +25,21 @@ function load(): SavedPrinter[] {
 const printers = ref<SavedPrinter[]>(load());
 watch(printers, (v) => localStorage.setItem(KEY, JSON.stringify(v)), { deep: true });
 
-// 新增/更新设备（同 id 覆盖，重复扫描同一设备不产生重复项）
+// 新增/更新设备（按 地址+连接方式 去重：双模打印机的 BLE 与 SPP 地址相同，可并存两条）
 export function savePrinter(p: SavedPrinter) {
-  const i = printers.value.findIndex((x) => x.id === p.id);
+  const i = printers.value.findIndex((x) => x.id === p.id && x.conn === p.conn);
   if (i >= 0) printers.value[i] = { ...p };
   else printers.value.push({ ...p });
 }
 
 // 修改名称 / 编码格式
-export function updatePrinter(id: string, patch: Partial<Omit<SavedPrinter, "id">>) {
-  const p = printers.value.find((x) => x.id === id);
+export function updatePrinter(id: string, conn: PrinterConn, patch: Partial<Omit<SavedPrinter, "id" | "conn">>) {
+  const p = printers.value.find((x) => x.id === id && x.conn === conn);
   if (p) Object.assign(p, patch);
 }
 
-export function removePrinter(id: string) {
-  printers.value = printers.value.filter((p) => p.id !== id);
+export function removePrinter(id: string, conn: PrinterConn) {
+  printers.value = printers.value.filter((p) => !(p.id === id && p.conn === conn));
 }
 
 export { printers };
