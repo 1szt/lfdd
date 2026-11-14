@@ -30,11 +30,11 @@
 
       <!-- 订单卡片 -->
       <div v-for="o in orders" :key="o.id" class="order-card">
-        <div class="row items-center justify-between">
-          <div class="col">
-            <div class="text-body2 text-weight-medium">{{ o.order_no }}</div>
-            <div class="text-caption text-grey-6">{{ o.created_at }}</div>
-          </div>
+        <div class="text-body2 text-weight-medium">{{ o.order_no }}</div>
+        <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+
+        <!-- 操作按钮单独一行，避免挤压订单号 -->
+        <div class="row items-center q-gutter-xs q-mt-sm order-actions">
           <q-btn
             v-if="o.status === 0"
             color="orange"
@@ -549,5 +549,10 @@ onMounted(() => {
 .print-card {
   min-width: 340px;
   max-width: 90vw;
+}
+
+/* 操作按钮行：窄屏自动折行，不与订单号抢空间 */
+.order-actions {
+  flex-wrap: wrap;
 }
 </style>
