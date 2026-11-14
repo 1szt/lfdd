@@ -95,8 +95,19 @@
               <div v-if="it.spec" class="text-caption text-grey-6 ellipsis">{{ it.spec }}</div>
             </div>
             <div class="text-caption text-grey-7">x{{ it.qty }}</div>
-            <div class="column items-end" style="min-width: 76px">
-              <div class="text-caption text-grey-7">¥{{ fmtPrice(it.price) }}</div>
+            <div class="column items-end" style="min-width: 96px">
+              <!-- 单价：改过价显示原价划线 + 改后价 -->
+              <div class="text-caption text-grey-7">
+                <template v-if="it.edited === 1">
+                  <span class="text-grey-5" style="text-decoration: line-through">
+                    ¥{{ fmtPrice(it.orig_price) }}
+                  </span>
+                  <span class="text-weight-medium text-negative q-ml-xs">
+                    ¥{{ fmtPrice(it.price) }}
+                  </span>
+                </template>
+                <template v-else>¥{{ fmtPrice(it.price) }}</template>
+              </div>
               <div class="text-caption text-weight-medium">¥{{ fmtPrice(it.price * it.qty) }}</div>
             </div>
             <q-chip
@@ -262,8 +273,9 @@ const router = useRouter();
 interface OrderItem {
   goods_id: string;
   name: string;
-  price: number; // 单价，分（未改价的待结单单为商品当前价）
+  price: number; // 单价，分（未改价的待结单单为商品当前价；改价/结单后为锁定价）
   edited: number; // 是否改过价（改价标记）
+  orig_price: number; // 改价前原价，分（仅改过价的行有值）
   spec: string;
   qty: number;
   image: string;

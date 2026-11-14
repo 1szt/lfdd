@@ -230,9 +230,16 @@ func ChangePrice(i ChangePriceInput) (o ChangePriceOutput, err error) {
 		return o, errors.New("已结单的订单不能改价")
 	}
 
+	// 原价 = 商品表当前价（即「没改的价格」），用于改价前后对比展示
+	orig := 0
+	var g model.Goods
+	if e := db.DB.First(&g, i.GoodsID).Error; e == nil {
+		orig = g.Price
+	}
+
 	res := db.DB.Model(&model.OrderItem{}).
 		Where("order_id = ? AND goods_id = ?", ord.ID, i.GoodsID).
-		Updates(map[string]any{"price": i.Price, "edited": 1})
+		Updates(map[string]any{"price": i.Price, "edited": 1, "orig_price": orig})
 	if res.Error != nil {
 		return o, res.Error
 	}
@@ -343,13 +350,14 @@ type GetOrdersInput struct {
 	Status   int `json:"status"`    // -1 全部（默认）、0 未结单、1 已结单
 }
 type OrderItemView struct {
-	GoodsID int64  `json:"goods_id,string"`
-	Name    string `json:"name"`
-	Price   int    `json:"price"`    // 单价，分（未改价的待结单单为商品当前价）
-	Edited  int8   `json:"edited"`   // 是否改过价（改价标记）
-	Spec    string `json:"spec"`
-	Qty     int    `json:"qty"`
-	Image   string `json:"image"`
+	GoodsID    int64  `json:"goods_id,string"`
+	Name       string `json:"name"`
+	Price      int    `json:"price"`      // 单价，分（未改价的待结单单为商品当前价；改价/结单后为锁定价）
+	Edited     int8   `json:"edited"`     // 是否改过价（改价标记）
+	OrigPrice  int    `json:"orig_price"` // 改价前原价，分（仅改过价的行有值，展示对比用）
+	Spec       string `json:"spec"`
+	Qty        int    `json:"qty"`
+	Image      string `json:"image"`
 }
 type OrderView struct {
 	ID        int64           `json:"id,string"`
@@ -412,7 +420,8 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 	for _, it := range items {
 		itemsByOrder[it.OrderID] = append(itemsByOrder[it.OrderID], OrderItemView{
 			GoodsID: it.GoodsID, Name: it.Name, Price: it.Price, Edited: it.Edited,
-			Spec: it.Spec, Qty: it.Qty, Image: it.Image,
+			OrigPrice: it.OrigPrice,
+			Spec:      it.Spec, Qty: it.Qty, Image: it.Image,
 		})
 	}
 
