@@ -48,7 +48,15 @@
               aria-label="减少"
               @click="changeQty(line, -1)"
             />
-            <span class="qty-num text-weight-bold">{{ line.qty }}</span>
+            <q-input
+              :model-value="line.qty"
+              type="number"
+              dense
+              borderless
+              class="qty-input"
+              aria-label="修改数量"
+              @change="onQtyInput(line, $event)"
+            />
             <q-btn
               round
               dense
@@ -57,6 +65,16 @@
               size="md"
               aria-label="增加"
               @click="changeQty(line, 1)"
+            />
+            <q-btn
+              flat
+              dense
+              round
+              color="negative"
+              icon="delete"
+              size="sm"
+              aria-label="删除该商品"
+              @click="removeLine(line.id)"
             />
           </div>
           <div class="text-caption text-grey-6">小计 ¥{{ fmtPrice(line.price * line.qty) }}</div>
@@ -88,7 +106,9 @@ import {
   changeQty,
   clearCart,
   fmtPrice,
-  imgSrc
+  imgSrc,
+  removeLine,
+  setQty
 } from "../../utils/cart";
 
 const $q = useQuasar();
@@ -101,6 +121,12 @@ function pageStyle(offset: number, height: number) {
     return { height: `${height - offset}px` };
   }
   return { height: offset !== 0 ? `calc(100vh - ${offset}px)` : "100vh" };
+}
+
+// 数量输入框直接改数字：0/非法 → 移除该行，超库存由 setQty 封顶
+function onQtyInput(line: { id: string; name: string; price: number; stock: number; image?: string; spec?: string }, v: string | number) {
+  const n = Math.floor(Number(v));
+  setQty(line, Number.isFinite(n) ? n : 0);
 }
 
 // 结算：购物车明细提交后端建订单（价格由后端按库结算），成功后清空并跳订单页
@@ -178,10 +204,23 @@ async function checkout() {
   }
 }
 
-.qty-num {
-  min-width: 24px;
-  text-align: center;
-  font-size: 16px;
+/* 数量输入框：直接改数字（0 = 移除），隐藏数字框 spinner */
+.qty-input {
+  width: 48px;
+
+  :deep(input) {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 0;
+    -moz-appearance: textfield;
+  }
+
+  :deep(input::-webkit-outer-spin-button),
+  :deep(input::-webkit-inner-spin-button) {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
 .cart-summary {
