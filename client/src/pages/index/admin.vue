@@ -207,6 +207,14 @@
           <q-toolbar class="q-px-none">
             <q-btn
               color="primary"
+              icon="add"
+              label="添加设备"
+              @click="openAddManual"
+            />
+            <q-btn
+              class="q-ml-sm"
+              outline
+              color="primary"
               icon="bluetooth_searching"
               :label="scanning ? '搜索中…' : '搜索蓝牙'"
               :loading="scanning"
@@ -220,7 +228,7 @@
               @click="stopScan"
             />
             <q-space />
-            <span class="text-caption text-grey-6">搜索后点击设备添加；点已保存设备发测试小票</span>
+            <span class="text-caption text-grey-6">点已保存设备可编辑 / 测试 / 删除</span>
           </q-toolbar>
 
           <q-banner
@@ -240,21 +248,22 @@
             </q-item-label>
             <q-item v-if="printers.length === 0">
               <q-item-section class="text-grey-6">
-                还没有添加打印机，先搜索并点击下方设备添加
+                还没有添加打印机，点上方「添加设备」或搜索后点击下方设备添加
               </q-item-section>
             </q-item>
-            <q-item v-for="p in printers" :key="p.conn + p.id">
+            <q-item v-for="p in printers" :key="p.key">
               <q-item-section avatar>
                 <q-icon
-                  :name="p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
-                  :color="p.conn === 'spp' ? 'teal' : 'primary'"
+                  :name="p.kind === 'label' ? 'label' : p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
+                  :color="p.kind === 'label' ? 'deep-purple' : p.conn === 'spp' ? 'teal' : 'primary'"
                 />
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{ p.name }}</q-item-label>
                 <q-item-label caption>
-                  {{ p.conn === "spp" ? "传统" : "低功耗" }} · {{ p.id }} ·
-                  {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
+                  {{ p.kind === "label" ? "标签打印机" : "小票机" }} ·
+                  {{ p.transport === "wifi" ? "WiFi" : p.conn === "spp" ? "传统蓝牙" : "低功耗" }}
+                  · {{ p.id }} · {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
@@ -361,10 +370,46 @@
             {{ devForm.editing ? "编辑打印机" : "添加打印机" }}
           </q-card-section>
           <q-card-section class="column q-gutter-sm">
+            <!-- 设备类型：标签打印占位 -->
+            <q-select
+              v-model="devForm.kind"
+              :options="kindOptions"
+              label="设备类型"
+              outlined
+              dense
+              emit-value
+              map-options
+            />
+            <!-- 连接方式：WiFi 打印占位 -->
+            <q-select
+              v-model="devForm.transport"
+              :options="transportOptions"
+              label="连接方式"
+              outlined
+              dense
+              emit-value
+              map-options
+            />
+            <!-- 蓝牙子类型（仅连接方式=蓝牙） -->
+            <q-select
+              v-if="devForm.transport === 'bt'"
+              v-model="devForm.conn"
+              :options="connOptions"
+              label="蓝牙方式"
+              outlined
+              dense
+              emit-value
+              map-options
+            />
+            <q-input
+              v-model="devForm.id"
+              :label="devForm.transport === 'wifi' ? '打印机地址（IP:端口）' : '蓝牙地址'"
+              outlined
+              dense
+              :placeholder="devForm.transport === 'wifi' ? '192.168.1.88:9100' : undefined"
+              :hint="devForm.transport === 'wifi' ? 'WiFi 打印即将支持，可先保存' : undefined"
+            />
             <q-input v-model="devForm.name" label="设备名称" outlined dense autofocus />
-            <div class="text-caption text-grey-6">
-              地址 {{ devForm.id }} · {{ devForm.conn === "spp" ? "传统蓝牙" : "低功耗蓝牙" }}
-            </div>
             <q-select
               v-model="devForm.encoding"
               :options="encOptions"
@@ -513,6 +558,8 @@ import {
   removePrinter,
   savePrinter,
   updatePrinter,
+  type PrinterKind,
+  type PrinterTransport,
   type SavedPrinter
 } from "@/utils/printerStore";
 
@@ -940,18 +987,33 @@ const bleDevices = ref<BleScanDevice[]>([]);
 const sppDevices = ref<SppDevice[]>([]);
 let stopBle: (() => Promise<void>) | null = null;
 
-// ================= 打印机设备管理 =================
+// ================= 打印机设备管理（设备类型 / 连接方式表单，不去重） =================
 const encOptions = [
   { label: "GBK（推荐）", value: "gbk" },
   { label: "UTF-8", value: "utf8" }
+];
+const kindOptions = [
+  { label: "小票机", value: "receipt" },
+  { label: "标签打印机（即将支持）", value: "label" }
+];
+const transportOptions = [
+  { label: "蓝牙", value: "bt" },
+  { label: "WiFi（即将支持）", value: "wifi" }
+];
+const connOptions = [
+  { label: "低功耗蓝牙", value: "ble" },
+  { label: "传统蓝牙", value: "spp" }
 ];
 const devDlg = ref(false);
 const devForm = reactive({
   id: "",
   name: "",
   conn: "ble" as PrinterConn,
+  transport: "bt" as PrinterTransport,
+  kind: "receipt" as PrinterKind,
   encoding: "gbk" as PrinterEncoding,
-  editing: false
+  editing: false,
+  key: "" // 编辑目标（不去重，按 key 操作）
 });
 
 // 组装测试小票（按设备编码格式）
@@ -984,32 +1046,62 @@ function buildTestPayload(enc: PrinterEncoding = "gbk") {
   return Array.from(payload);
 }
 
-// 扫描列表点设备 → 弹添加对话框（名称预填，可选编码）
+// 手动添加（扫描不到时手填地址）
+function openAddManual() {
+  devForm.editing = false;
+  devForm.key = "";
+  devForm.id = "";
+  devForm.name = "";
+  devForm.conn = "ble";
+  devForm.transport = "bt";
+  devForm.kind = "receipt";
+  devForm.encoding = "gbk";
+  devDlg.value = true;
+}
+
+// 扫描列表点设备 → 弹添加对话框（预填地址/名称/连接方式，每次保存都是新条目，不去重）
 function openAdd(d: BleScanDevice | SppDevice, conn: PrinterConn) {
   devForm.editing = false;
+  devForm.key = "";
   devForm.conn = conn;
+  devForm.transport = "bt";
+  devForm.kind = "receipt";
   devForm.id = conn === "ble" ? (d as BleScanDevice).deviceId : (d as SppDevice).address;
   devForm.name = d.name || "小票机";
   devForm.encoding = "gbk";
   devDlg.value = true;
 }
 
-// 编辑已保存设备（改名 / 换编码）
+// 编辑已保存设备（改名 / 换类型 / 换连接方式 / 换编码）
 function openEdit(p: SavedPrinter) {
   devForm.editing = true;
+  devForm.key = p.key;
   devForm.id = p.id;
   devForm.name = p.name;
   devForm.conn = p.conn;
+  devForm.transport = p.transport;
+  devForm.kind = p.kind;
   devForm.encoding = p.encoding;
   devDlg.value = true;
 }
 
 function saveDev() {
+  const id = devForm.id.trim();
+  if (!id) {
+    $q.notify({ message: "请填写打印机地址", color: "negative" });
+    return;
+  }
   const name = devForm.name.trim() || "小票机";
   if (devForm.editing) {
-    updatePrinter(devForm.id, devForm.conn, { name, encoding: devForm.encoding });
+    updatePrinter(devForm.key, {
+      id, name, conn: devForm.conn,
+      transport: devForm.transport, kind: devForm.kind, encoding: devForm.encoding
+    });
   } else {
-    savePrinter({ id: devForm.id, name, conn: devForm.conn, encoding: devForm.encoding });
+    savePrinter({
+      id, name, conn: devForm.conn,
+      transport: devForm.transport, kind: devForm.kind, encoding: devForm.encoding
+    });
   }
   devDlg.value = false;
   $q.notify({ message: "已保存打印机", color: "positive" });
@@ -1020,11 +1112,21 @@ function confirmRemovePrinter(p: SavedPrinter) {
     title: "删除打印机",
     message: `确定删除「${p.name}」？`,
     cancel: true
-  }).onOk(() => removePrinter(p.id, p.conn));
+  }).onOk(() => removePrinter(p.key));
 }
 
-// 测试打印：按设备连接方式与编码发测试小票
+// 测试打印：按设备连接方式与编码发测试小票（WiFi / 标签为占位项，暂不支持）
 async function testPrinter(p: SavedPrinter) {
+  if (p.transport === "wifi") {
+    statusOk.value = false;
+    status.value = "WiFi 打印即将支持，暂无法测试";
+    return;
+  }
+  if (p.kind === "label") {
+    statusOk.value = false;
+    status.value = "标签打印即将支持，暂无法测试；小票打印请把设备类型改为小票机";
+    return;
+  }
   try {
     const payload = buildTestPayload(p.encoding);
     const name =

@@ -171,7 +171,7 @@
           <q-list v-if="printers.length > 0" bordered separator class="q-mt-sm">
             <q-item
               v-for="p in printers"
-              :key="p.id"
+              :key="p.key"
               clickable
               v-ripple
               :disable="printing"
@@ -179,14 +179,16 @@
             >
               <q-item-section avatar>
                 <q-icon
-                  :name="p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
-                  :color="p.conn === 'spp' ? 'teal' : 'primary'"
+                  :name="p.kind === 'label' ? 'label' : p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
+                  :color="p.kind === 'label' ? 'deep-purple' : p.conn === 'spp' ? 'teal' : 'primary'"
                 />
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{ p.name }}</q-item-label>
                 <q-item-label caption>
-                  {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
+                  {{ p.kind === "label" ? "标签打印机" : "小票机" }} ·
+                  {{ p.transport === "wifi" ? "WiFi" : p.conn === "spp" ? "传统蓝牙" : "低功耗" }}
+                  · {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side><q-icon name="print" color="grey-7" /></q-item-section>
@@ -621,8 +623,19 @@ function toReceipt(o: Order): ReceiptOrder {
 }
 
 // 选中已添加设备打印：按设备连接方式（BLE/SPP）与编码格式出票
+// WiFi / 标签为占位项，暂不支持
 async function printWith(p: SavedPrinter) {
   if (!printOrder.value || printing.value) return;
+  if (p.transport === "wifi") {
+    printStatusOk.value = false;
+    printStatus.value = "WiFi 打印即将支持，暂无法使用该设备";
+    return;
+  }
+  if (p.kind === "label") {
+    printStatusOk.value = false;
+    printStatus.value = "标签打印即将支持，暂无法使用该设备；小票打印请在管理页把设备类型改为小票机";
+    return;
+  }
   printing.value = true;
   printingId.value = printOrder.value.id;
   try {
