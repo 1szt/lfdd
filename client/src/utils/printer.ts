@@ -266,9 +266,23 @@ export async function blePrintTo(deviceId: string, payload: number[], name = "")
   const api = bleApi();
   await api.connect({ deviceId });
   try {
-    const { services } = await api.getServices({ deviceId });
-    const target = findWritable(services);
-    if (!target) throw new Error("已连接但未找到可写特征，请确认这是 BLE 小票机");
+    // GATT 服务发现常滞后于连接返回（打印机有时要几百毫秒才暴露特征），
+    // 立即 getServices 会拿到空/不全的列表 → 重试几次直到找到可写特征
+    let target: { service: string; characteristic: string; useResponse: boolean } | null = null;
+    let svcCount = 0;
+    for (let i = 0; i < 6 && !target; i++) {
+      const { services } = await api.getServices({ deviceId });
+      svcCount = services?.length ?? 0;
+      target = findWritable(services ?? []);
+      if (!target) await new Promise((r) => setTimeout(r, 300));
+    }
+    if (!target) {
+      throw new Error(
+        svcCount === 0
+          ? "已连接但未发现任何蓝牙服务，可能是连错了设备或打印机正忙，请重试"
+          : `已连接但未找到可写特征（发现 ${svcCount} 个服务），请确认这是 BLE 小票机`
+      );
+    }
 
     // 单次写入上限 = MTU - 3（ATT 协议头）
     let mtu = 23;
