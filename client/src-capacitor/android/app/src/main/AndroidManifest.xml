@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <application
         android:allowBackup="true"
@@ -39,13 +40,16 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
-    <!-- 经典蓝牙（SPP）：Android 11 及以下 -->
+    <!-- 经典蓝牙（SPP）：SPP 的 RFCOMM connect 等调用在 Android 12+ 仍强制校验 legacy BLUETOOTH
+         权限（logcat: lacks permission android.permission.BLUETOOTH → 闪退）。
+         bluetooth-le 插件的 manifest 给这两个权限带了 maxSdkVersion=30，会合并进来，
+         这里用 tools:remove 剥掉；二者是 normal 级，安装时自动授予，不弹授权框 -->
     <uses-permission
         android:name="android.permission.BLUETOOTH"
-        android:maxSdkVersion="30" />
+        tools:remove="android:maxSdkVersion" />
     <uses-permission
         android:name="android.permission.BLUETOOTH_ADMIN"
-        android:maxSdkVersion="30" />
+        tools:remove="android:maxSdkVersion" />
     <!-- 传统蓝牙扫描（discoverUnpaired）插件硬性要求位置权限，全版本声明 -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission

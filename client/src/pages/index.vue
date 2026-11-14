@@ -20,7 +20,7 @@
         <q-route-tab to="/" name="menu" icon="shopping_bag" label="商品" />
         <q-route-tab to="/cart" name="cart" icon="shopping_cart" label="购物车" />
         <q-route-tab to="/order" name="order" icon="receipt_long" label="订单" />
-        <q-route-tab to="/admin" name="admin" icon="admin_panel_settings" label="后台" />
+        <q-route-tab to="/admin" name="admin" icon="admin_panel_settings" label="管理" />
       </q-tabs>
     </q-footer>
   </q-layout>

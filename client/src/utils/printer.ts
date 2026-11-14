@@ -172,14 +172,33 @@ function sppCall<T>(
   });
 }
 
+// Android 12+ 运行时权限兜底：老 cordova SPP 插件（2018 年）不申请 BLUETOOTH_CONNECT/SCAN，
+// 未授权直接调 getBondedDevices/startDiscovery 会抛 SecurityException → 应用闪退。
+// 借 BLE 插件的 initialize（会弹「附近设备」授权并等授权结果）先把权限拿到手。
+async function ensureBtPermission(): Promise<void> {
+  if (!isNative()) return;
+  try {
+    await bleApi().initialize({ androidNeverForLocation: true });
+  } catch (e) {
+    const msg = String((e as any)?.message || e || "");
+    if (/BLE is not supported/i.test(msg)) return; // 无 BLE 的设备无法经此渠道授权，只能直接尝试
+    if (/permission/i.test(msg)) {
+      throw new Error("蓝牙权限未授予，请在系统设置里允许本应用的「附近设备」权限后重试");
+    }
+    throw e;
+  }
+}
+
 // 已配对的经典蓝牙设备
-export function sppList(): Promise<SppDevice[]> {
+export async function sppList(): Promise<SppDevice[]> {
+  await ensureBtPermission();
   return sppCall<SppDevice[]>((ok, fail) => sppApi().list(ok, fail));
 }
 
 // 经典蓝牙搜索：扫描附近「未配对」设备（不返回已保存的设备）
 // onDevice 每发现一个新设备回调一次；扫描结束（约 12 秒）时 resolve 完整列表
 export async function sppDiscover(onDevice?: (d: SppDevice) => void): Promise<SppDevice[]> {
+  await ensureBtPermission();
   const api = sppApi();
   const found = new Map<string, SppDevice>();
   const emit = (raw: SppDevice) => {
@@ -204,6 +223,7 @@ export async function sppDiscover(onDevice?: (d: SppDevice) => void): Promise<Sp
 
 // 经典蓝牙打印：连接 → 写入 → 断开，返回设备名
 export async function sppPrint(device: SppDevice, payload: number[]): Promise<string> {
+  await ensureBtPermission(); // connect 同样需要 BLUETOOTH_CONNECT，缺失会闪退
   const api = sppApi();
   await sppCall<void>((ok, fail) => api.connect(device.address, ok, fail));
   try {

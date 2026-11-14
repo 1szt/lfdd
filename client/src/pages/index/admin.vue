@@ -58,7 +58,7 @@
     <!-- ================= 已登录：管理界面 ================= -->
     <div v-else class="admin-wrap">
       <div class="row items-center q-mb-sm">
-        <div class="text-h6">后台管理</div>
+        <div class="text-h6">管理</div>
         <q-space />
         <q-btn flat dense color="negative" icon="logout" label="退出登录" @click="logout" />
       </div>
