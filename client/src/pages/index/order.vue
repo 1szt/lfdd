@@ -167,32 +167,44 @@
         <q-card-section class="q-pt-none">
           <div class="text-caption text-grey-7">订单 {{ printOrder?.order_no }}</div>
 
-          <div class="row q-gutter-sm q-mt-md">
-            <q-btn
-              color="primary"
-              label="选择蓝牙设备"
-              unelevated
-              icon="bluetooth"
-              :loading="printing"
-              @click="printBle"
-            />
-            <q-btn
-              outline
-              color="primary"
-              label="已配对设备"
-              icon="list"
-              :loading="loadingSpp"
-              @click="loadSppDevices"
-            />
-          </div>
-
-          <q-list v-if="sppDevices.length > 0" bordered separator class="q-mt-sm">
-            <q-item v-for="d in sppDevices" :key="d.address" clickable @click="printSpp(d)">
-              <q-item-section avatar><q-icon name="bluetooth" color="primary" /></q-item-section>
-              <q-item-section>{{ d.name || d.address }}</q-item-section>
+          <!-- 已添加设备：点选即打印（编码按各设备设置） -->
+          <q-list v-if="printers.length > 0" bordered separator class="q-mt-sm">
+            <q-item
+              v-for="p in printers"
+              :key="p.id"
+              clickable
+              v-ripple
+              :disable="printing"
+              @click="printWith(p)"
+            >
+              <q-item-section avatar>
+                <q-icon
+                  :name="p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
+                  :color="p.conn === 'spp' ? 'teal' : 'primary'"
+                />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ p.name }}</q-item-label>
+                <q-item-label caption>
+                  {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
+                </q-item-label>
+              </q-item-section>
               <q-item-section side><q-icon name="print" color="grey-7" /></q-item-section>
             </q-item>
           </q-list>
+
+          <!-- 没有设备：引导去管理页添加 -->
+          <div v-else class="column items-center q-mt-md">
+            <q-icon name="printer" size="48px" color="grey-4" />
+            <div class="text-body2 text-grey-7 q-mt-sm">还没有添加打印机</div>
+            <q-btn
+              class="q-mt-sm"
+              color="primary"
+              label="去添加设备"
+              unelevated
+              @click="goManagePrinter"
+            />
+          </div>
 
           <div
             v-if="printStatus"
@@ -200,9 +212,6 @@
             :class="printStatusOk ? 'text-positive' : 'text-negative'"
           >
             {{ printStatus }}
-          </div>
-          <div v-else class="q-mt-sm text-caption text-grey-6">
-            「选择蓝牙设备」弹系统选择框（BLE）；打印机是经典蓝牙时用「已配对设备」列表。
           </div>
         </q-card-section>
 
@@ -273,16 +282,15 @@ import { useRouter } from "vue-router";
 import { copyOrderToCart, fmtPrice, imgSrc } from "../../utils/cart";
 import {
   bleInit,
-  blePrint,
+  blePrintTo,
   buildOrderPayload,
   describeError,
   isNative,
-  sppList,
   sppPrint,
-  webBluetoothPrint,
-  type ReceiptOrder,
-  type SppDevice
+  webBluetoothPrintTo,
+  type ReceiptOrder
 } from "../../utils/printer";
+import { printers, type SavedPrinter } from "../../utils/printerStore";
 
 const $q = useQuasar();
 const router = useRouter();
@@ -585,8 +593,6 @@ async function voidOrder(o: Order) {
 const printDlg = ref(false);
 const printOrder = ref<Order | null>(null);
 const printing = ref(false);
-const loadingSpp = ref(false);
-const sppDevices = ref<SppDevice[]>([]);
 const printStatus = ref("");
 const printStatusOk = ref(false);
 const printingId = ref<string | null>(null);
@@ -594,8 +600,14 @@ const printingId = ref<string | null>(null);
 function openPrint(o: Order) {
   printOrder.value = o;
   printStatus.value = "";
-  sppDevices.value = [];
+  printStatusOk.value = false;
   printDlg.value = true;
+}
+
+// 没有已添加设备时跳设备管理页
+function goManagePrinter() {
+  printDlg.value = false;
+  void router.push("/admin");
 }
 
 function toReceipt(o: Order): ReceiptOrder {
@@ -608,54 +620,28 @@ function toReceipt(o: Order): ReceiptOrder {
   };
 }
 
-// BLE / 网页：弹系统设备选择框，选中即打印
-async function printBle() {
+// 选中已添加设备打印：按设备连接方式（BLE/SPP）与编码格式出票
+async function printWith(p: SavedPrinter) {
   if (!printOrder.value || printing.value) return;
   printing.value = true;
   printingId.value = printOrder.value.id;
   try {
-    if (isNative()) {
+    const payload = buildOrderPayload(toReceipt(printOrder.value), p.encoding);
+    let name: string;
+    if (p.conn === "spp") {
+      if (!isNative()) throw new Error("网页端不支持传统蓝牙打印，请在 App 中打印");
+      name = await sppPrint({ address: p.id, name: p.name }, payload);
+    } else if (isNative()) {
       try {
-        await bleInit(); // 初始化（触发 Android「附近设备」权限）
+        await bleInit(); // 初始化（内部触发 Android「附近设备」权限）
       } catch {
-        // 已初始化过则忽略
+        // 已初始化过则忽略（权限被拒时由下面 blePrintTo 统一报错）
       }
+      name = await blePrintTo(p.id, payload, p.name);
+    } else {
+      await webBluetoothPrintTo(p.id, payload);
+      name = p.name;
     }
-    const payload = buildOrderPayload(toReceipt(printOrder.value));
-    const name = isNative() ? await blePrint(payload) : await webBluetoothPrint(payload);
-    printStatusOk.value = true;
-    printStatus.value = `已发送到「${name}」，请查看打印机出纸`;
-  } catch (e) {
-    printStatusOk.value = false;
-    printStatus.value = describeError(e);
-  } finally {
-    printing.value = false;
-    printingId.value = null;
-  }
-}
-
-// 经典蓝牙：读取系统已配对设备，点击即打印
-async function loadSppDevices() {
-  loadingSpp.value = true;
-  try {
-    sppDevices.value = await sppList();
-    if (sppDevices.value.length === 0) {
-      $q.notify({ message: "没有已配对的蓝牙设备，请先在系统设置中配对打印机", color: "orange" });
-    }
-  } catch (e) {
-    $q.notify({ message: describeError(e), color: "negative" });
-  } finally {
-    loadingSpp.value = false;
-  }
-}
-
-async function printSpp(d: SppDevice) {
-  if (!printOrder.value || printing.value) return;
-  printing.value = true;
-  printingId.value = printOrder.value.id;
-  try {
-    const payload = buildOrderPayload(toReceipt(printOrder.value));
-    const name = await sppPrint(d, payload);
     printStatusOk.value = true;
     printStatus.value = `已发送到「${name}」，请查看打印机出纸`;
   } catch (e) {

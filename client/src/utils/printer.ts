@@ -15,18 +15,28 @@ export function isNative(): boolean {
 }
 
 // ==================== 文本编码 ====================
+// 连接方式：ble 低功耗 / spp 经典蓝牙
+export type PrinterConn = "ble" | "spp";
+// 编码格式：gbk 国产热敏机默认 / utf8 部分机型支持
+export type PrinterEncoding = "gbk" | "utf8";
+
 // 国产热敏机按 GBK 解释字节流，发 UTF-8 中文会乱码
 // str2gbk：纯浏览器 GBK 编码（<1KB，基于 TextDecoder 反查实现）
 export function encodeGbk(text: string): Uint8Array {
   return str2gbk(text, { onAlloc: (len) => new Uint8Array(len) });
 }
 
+// 按设备编码格式编码文本（utf8 机型发 UTF-8，gbk 机型发 GBK）
+export function encodeText(text: string, enc: PrinterEncoding = "gbk"): Uint8Array {
+  return enc === "utf8" ? new TextEncoder().encode(text) : encodeGbk(text);
+}
+
 // 组装测试小票数据：初始化 + 居中 + 文案 + 换行 + 走纸
-export function buildTestPayload(): number[] {
+export function buildTestPayload(encoding: PrinterEncoding = "gbk"): number[] {
   return [
     ...ESC_INIT,
     ...ESC_ALIGN_CENTER,
-    ...encodeGbk("你好 蓝牙小票机"),
+    ...encodeText("你好 蓝牙小票机", encoding),
     0x0a,
     0x0a,
     ...ESC_FEED
@@ -91,7 +101,7 @@ function padStartW(s: string, width: number): string {
 }
 
 // 组装订单小票：初始化 + 居中放大标题 + 单号/时间 + 明细 + 合计 + 走纸切纸
-export function buildOrderPayload(o: ReceiptOrder): number[] {
+export function buildOrderPayload(o: ReceiptOrder, encoding: PrinterEncoding = "gbk"): number[] {
   const lines: string[] = [
     `${o.orderNo}`,
     "--------------------------------"
@@ -123,10 +133,10 @@ export function buildOrderPayload(o: ReceiptOrder): number[] {
     // 紧跟在 INIT 后、且不发 GS ! 等可能覆盖样式的大命令（与字体测试票同一路径）
     new Uint8Array([0x1b, 0x21, 0x10]),
     new Uint8Array(ESC_ALIGN_CENTER),
-    encodeGbk(lines[0] ?? "订单小票"),
+    encodeText(lines[0] ?? "订单小票", encoding),
     new Uint8Array([0x0a]),
     new Uint8Array([0x1b, 0x61, 0x00]), // ESC a 0 左对齐
-    encodeGbk(lines.slice(1).join("\n")),
+    encodeText(lines.slice(1).join("\n"), encoding),
     new Uint8Array(ESC_FEED),
     new Uint8Array([0x1d, 0x56, 0x41, 0x03]) // GS V A 3 走纸并切纸
   ];
