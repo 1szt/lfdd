@@ -299,6 +299,7 @@ type GetOrdersInput struct {
 }
 type OrderItemView struct {
 	GoodsID int64  `json:"goods_id,string"`
+	MenuID  int64  `json:"menu_id,string"` // 所属分类（复制到购物车后角标统计用）
 	Name    string `json:"name"`
 	Price   int    `json:"price"` // 单价，分
 	Spec    string `json:"spec"`
@@ -370,6 +371,29 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		})
 	}
 
+	// 批量查商品表：补分类（复制到购物车角标用）；待结单订单再补实时价
+	allGoods := []int64{}
+	for _, it := range items {
+		allGoods = append(allGoods, it.GoodsID)
+	}
+	var gs []model.Goods
+	if len(allGoods) > 0 {
+		if err = db.DB.Where("id IN ?", allGoods).Find(&gs).Error; err != nil {
+			return o, err
+		}
+	}
+	menuByGoods := make(map[int64]int64, len(gs))
+	priceByGoods := make(map[int64]int, len(gs))
+	for _, g := range gs {
+		menuByGoods[g.ID] = g.MenuID
+		priceByGoods[g.ID] = g.Price
+	}
+	for _, list := range itemsByOrder {
+		for n, v := range list {
+			list[n].MenuID = menuByGoods[v.GoodsID] // 商品已删则为 0，角标不计
+		}
+	}
+
 	// 待结单订单：明细价与合计按商品表当前价实时展示（价格未锁定，结单时才回写）；
 	// 商品已删除的行价格留 0（结单时会拒绝）
 	pendingIDs := []int64{}
@@ -379,31 +403,15 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		}
 	}
 	pendingTotal := map[int64]int{} // 订单 ID → 实时合计
-	if len(pendingIDs) > 0 {
-		pendingGoods := []int64{}
-		for _, id := range pendingIDs {
-			for _, v := range itemsByOrder[id] {
-				pendingGoods = append(pendingGoods, v.GoodsID)
+	for _, id := range pendingIDs {
+		total := 0
+		for n, v := range itemsByOrder[id] {
+			if p, ok := priceByGoods[v.GoodsID]; ok {
+				itemsByOrder[id][n].Price = p
+				total += p * v.Qty
 			}
 		}
-		var gs []model.Goods
-		if err = db.DB.Where("id IN ?", pendingGoods).Find(&gs).Error; err != nil {
-			return o, err
-		}
-		priceByGoods := make(map[int64]int, len(gs))
-		for _, g := range gs {
-			priceByGoods[g.ID] = g.Price
-		}
-		for _, id := range pendingIDs {
-			total := 0
-			for n, v := range itemsByOrder[id] {
-				if p, ok := priceByGoods[v.GoodsID]; ok {
-					itemsByOrder[id][n].Price = p
-					total += p * v.Qty
-				}
-			}
-			pendingTotal[id] = total
-		}
+		pendingTotal[id] = total
 	}
 
 	for _, ord := range orders {

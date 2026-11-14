@@ -208,6 +208,7 @@ const router = useRouter();
 
 interface OrderItem {
   goods_id: string;
+  menu_id: string; // 所属分类（复制到购物车后侧边栏角标统计）
   name: string;
   price: number; // 单价，分
   spec: string;
@@ -348,6 +349,7 @@ function copyToCart(o: Order) {
   copyOrderToCart(
     o.items.map((it) => ({
       goods_id: it.goods_id,
+      menu_id: it.menu_id,
       name: it.name,
       price: it.price,
       spec: it.spec,

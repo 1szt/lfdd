@@ -90,13 +90,15 @@ export function removeLine(id: string) {
 // 复制订单明细进购物车（与已有行合并数量），用于重新提交订单。
 // 订单里没有库存信息，stock 取 -1（不限）——下单时后端仍会校验库存。
 export function copyOrderToCart(
-  items: { goods_id: string; name: string; price: number; spec: string; image: string; qty: number }[]
+  items: { goods_id: string; menu_id?: string; name: string; price: number; spec: string; image: string; qty: number }[]
 ) {
   for (const it of items) {
     if (!it.goods_id || !(it.qty > 0)) continue;
     const idx = cart.value.findIndex((l) => l.id === it.goods_id);
     if (idx >= 0) {
       cart.value[idx]!.qty += it.qty;
+      // 合并时补上分类（旧行可能没有）
+      if (!cart.value[idx]!.menu_id && it.menu_id) cart.value[idx]!.menu_id = it.menu_id;
     } else {
       cart.value.push({
         id: it.goods_id,
@@ -105,6 +107,7 @@ export function copyOrderToCart(
         stock: -1,
         image: it.image ?? "",
         spec: it.spec ?? "",
+        menu_id: it.menu_id ?? "",
         qty: it.qty
       });
     }
