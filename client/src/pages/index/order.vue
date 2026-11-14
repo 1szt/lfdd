@@ -35,7 +35,6 @@
             @click="finishOrder(o)"
           />
           <q-btn
-            v-else
             color="primary"
             icon="print"
             label="打印"
@@ -57,19 +56,7 @@
               <div v-if="it.spec" class="text-caption text-grey-6 ellipsis">{{ it.spec }}</div>
             </div>
             <div class="text-caption text-grey-7">x{{ it.qty }}</div>
-            <q-chip
-              v-if="o.status === 0"
-              dense
-              size="xs"
-              flat
-              color="grey-5"
-              text-color="white"
-              class="q-ma-none"
-            >
-              待结
-            </q-chip>
             <div
-              v-else
               class="text-caption text-weight-medium"
               style="min-width: 64px; text-align: right"
             >
@@ -80,10 +67,10 @@
 
         <div class="row items-center justify-end q-gutter-sm q-mt-sm">
           <span class="text-caption text-grey-7">共 {{ o.count }} 件</span>
+          <span class="text-caption text-weight-bold text-negative">合计 ¥{{ fmtPrice(o.total) }}</span>
           <q-chip v-if="o.status === 0" color="orange" text-color="white" dense size="sm" class="q-ma-none">
             待结单
           </q-chip>
-          <span v-else class="text-caption text-weight-bold text-negative">合计 ¥{{ fmtPrice(o.total) }}</span>
         </div>
       </div>
 

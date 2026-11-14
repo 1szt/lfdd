@@ -272,6 +272,45 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		})
 	}
 
+	// 待结单订单：明细价与合计按商品表当前价实时展示（价格未锁定，结单时才回写）；
+	// 商品已删除的行价格留 0（结单时会拒绝）
+	pendingIDs := []int64{}
+	for _, ord := range orders {
+		if ord.Status == 0 {
+			pendingIDs = append(pendingIDs, ord.ID)
+		}
+	}
+	if len(pendingIDs) > 0 {
+		pendingGoods := []int64{}
+		for _, id := range pendingIDs {
+			for _, v := range itemsByOrder[id] {
+				pendingGoods = append(pendingGoods, v.GoodsID)
+			}
+		}
+		var gs []model.Goods
+		if err = db.DB.Where("id IN ?", pendingGoods).Find(&gs).Error; err != nil {
+			return o, err
+		}
+		priceByGoods := make(map[int64]int, len(gs))
+		for _, g := range gs {
+			priceByGoods[g.ID] = g.Price
+		}
+		for _, id := range pendingIDs {
+			total := 0
+			for n, v := range itemsByOrder[id] {
+				if p, ok := priceByGoods[v.GoodsID]; ok {
+					itemsByOrder[id][n].Price = p
+					total += p * v.Qty
+				}
+			}
+			for n, ord := range o.List {
+				if ord.ID == id {
+					o.List[n].Total = total
+				}
+			}
+		}
+	}
+
 	for _, ord := range orders {
 		list := itemsByOrder[ord.ID]
 		if list == nil {

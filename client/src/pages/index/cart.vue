@@ -74,7 +74,7 @@
               icon="delete"
               size="sm"
               aria-label="删除该商品"
-              @click="removeLine(line.id)"
+              @click="confirmRemove(line)"
             />
           </div>
           <div class="text-caption text-grey-6">小计 ¥{{ fmtPrice(line.price * line.qty) }}</div>
@@ -127,6 +127,18 @@ function pageStyle(offset: number, height: number) {
 function onQtyInput(line: { id: string; name: string; price: number; stock: number; image?: string; spec?: string }, v: string | number) {
   const n = Math.floor(Number(v));
   setQty(line, Number.isFinite(n) ? n : 0);
+}
+
+// 删除单个商品：二次确认，防止手误点掉
+function confirmRemove(line: { id: string; name: string }) {
+  $q.dialog({
+    title: "删除商品",
+    message: `确定把「${line.name}」从购物车删除吗？`,
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    removeLine(line.id);
+  });
 }
 
 // 结算：购物车明细提交后端建订单（价格由后端按库结算），成功后清空并跳订单页
