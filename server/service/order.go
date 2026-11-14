@@ -420,8 +420,8 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		})
 	}
 
-	// 待结单订单：未改价的明细按商品表当前价实时展示、合计实时算（结单时才回写锁定）；
-	// 改过价的明细保留改后价；未改价且商品已删除的行价格留 0（结单时会拒绝）
+	// 待结单订单：名称/规格/图片/价格全部按商品表现时信息实时展示、合计实时算（结单时才回写锁定）；
+	// 改过价的明细价格用改后价；商品已删除的行保留下单快照（结单时会拒绝）
 	pendingIDs := []int64{}
 	for _, ord := range orders {
 		if ord.Status == 0 {
@@ -440,25 +440,32 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		if err = db.DB.Where("id IN ?", pendingGoods).Find(&gs).Error; err != nil {
 			return o, err
 		}
-		priceByGoods := make(map[int64]int, len(gs))
+		goodsByGoods := make(map[int64]model.Goods, len(gs))
 		for _, g := range gs {
-			priceByGoods[g.ID] = g.Price
+			goodsByGoods[g.ID] = g
 		}
 		for _, id := range pendingIDs {
 			total := 0
 			for n, v := range itemsByOrder[id] {
-				if v.Edited == 1 {
-					total += v.Price * v.Qty // 改过价：用改后价
-					// 未结单：原价按商品表现时价展示（结单时才写入 orig_price）
-					if p, ok := priceByGoods[v.GoodsID]; ok {
-						itemsByOrder[id][n].OrigPrice = p
+				g, ok := goodsByGoods[v.GoodsID]
+				if !ok {
+					// 商品已删除：保留下单快照（结单时会拒绝）
+					if v.Edited == 1 {
+						total += v.Price * v.Qty
 					}
 					continue
 				}
-				if p, ok := priceByGoods[v.GoodsID]; ok {
-					itemsByOrder[id][n].Price = p
-					total += p * v.Qty
+				// 未结单：名称/规格/图片/价格全部按商品表现时信息展示（结单才锁定快照）
+				itemsByOrder[id][n].Name = g.Name
+				itemsByOrder[id][n].Spec = g.Spec
+				itemsByOrder[id][n].Image = g.Image
+				if v.Edited == 1 {
+					total += v.Price * v.Qty // 改过价：用改后价
+					itemsByOrder[id][n].OrigPrice = g.Price // 原价按商品表现时价（结单时才写入 orig_price）
+					continue
 				}
+				itemsByOrder[id][n].Price = g.Price
+				total += g.Price * v.Qty
 			}
 			pendingTotal[id] = total
 		}
