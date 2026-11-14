@@ -382,7 +382,15 @@
             </q-input>
             <q-btn class="q-ml-sm" flat dense icon="refresh" label="刷新" @click="loadUsers()" />
             <q-space />
-            <span class="text-caption text-grey-6">共 {{ userTotal }} 位用户</span>
+            <q-btn
+              color="primary"
+              dense
+              icon="person_add"
+              label="添加用户"
+              unelevated
+              @click="openAddUser"
+            />
+            <span class="text-caption text-grey-6 q-ml-sm">共 {{ userTotal }} 位用户</span>
           </q-toolbar>
 
           <div v-if="usersLoading" class="text-grey-6 q-pa-md">加载中…</div>
@@ -426,7 +434,20 @@
                     :label="u.role === 2 ? '设为普通' : '设为管理员'"
                     @click="toggleUserRole(u)"
                   />
-                  <q-btn dense flat icon="key" aria-label="重置密码" @click="resetUserPwd(u)" />
+                  <q-btn
+                    dense
+                    flat
+                    icon="edit"
+                    aria-label="编辑用户"
+                    @click="openEditUser(u)"
+                  />
+                  <q-btn
+                    dense
+                    flat
+                    icon="devices"
+                    aria-label="设备管理"
+                    @click="openUserDevices(u)"
+                  />
                   <q-btn
                     dense
                     flat
@@ -461,6 +482,124 @@
               @click="loadUsers(userPage + 1)"
             />
           </div>
+
+          <!-- ============ 添加用户 ============ -->
+          <q-dialog v-model="userAddDlg">
+            <q-card style="width: 420px; max-width: 95vw">
+              <q-card-section class="text-h6">添加用户</q-card-section>
+              <q-card-section class="column q-gutter-sm q-pt-none">
+                <q-input v-model="addForm.username" outlined dense label="用户名" autofocus />
+                <q-input v-model="addForm.email" outlined dense label="邮箱" type="email" />
+                <q-input
+                  v-model="addForm.password"
+                  outlined
+                  dense
+                  label="密码"
+                  type="password"
+                  hint="至少 8 位"
+                />
+                <q-select
+                  v-model="addForm.role"
+                  :options="roleOptions"
+                  outlined
+                  dense
+                  label="角色"
+                  emit-value
+                  map-options
+                />
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn flat label="取消" v-close-popup />
+                <q-btn
+                  color="primary"
+                  label="创建"
+                  :loading="userAddBusy"
+                  @click="saveAddUser"
+                />
+              </q-card-actions>
+            </q-card>
+          </q-dialog>
+
+          <!-- ============ 编辑用户（用户名 / 密码） ============ -->
+          <q-dialog v-model="userEditDlg">
+            <q-card style="width: 420px; max-width: 95vw">
+              <q-card-section class="text-h6">编辑用户</q-card-section>
+              <q-card-section class="column q-gutter-sm q-pt-none">
+                <div class="text-caption text-grey-7">邮箱：{{ editForm.email }}</div>
+                <q-input v-model="editForm.username" outlined dense label="用户名" autofocus />
+                <q-input
+                  v-model="editForm.password"
+                  outlined
+                  dense
+                  label="新密码"
+                  type="password"
+                  hint="留空则不修改密码；修改后该用户的其他登录会失效"
+                />
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn flat label="取消" v-close-popup />
+                <q-btn
+                  color="primary"
+                  label="保存"
+                  :loading="userEditBusy"
+                  @click="saveEditUser"
+                />
+              </q-card-actions>
+            </q-card>
+          </q-dialog>
+
+          <!-- ============ 设备管理（登录会话） ============ -->
+          <q-dialog v-model="userDevDlg">
+            <q-card style="width: 520px; max-width: 95vw">
+              <q-card-section class="text-h6">
+                设备管理 · {{ devUser ? devUser.username : "" }}
+              </q-card-section>
+              <q-card-section class="q-pt-none">
+                <div v-if="devLoading" class="text-grey-6">加载中…</div>
+                <div v-else-if="devSessions.length === 0" class="text-grey-6">
+                  该用户暂无登录会话。
+                </div>
+                <q-list v-else separator>
+                  <q-item v-for="s in devSessions" :key="s.token">
+                    <q-item-section>
+                      <q-item-label>
+                        {{ s.device || "未知设备" }}
+                        <q-badge
+                          v-if="s.current"
+                          color="orange"
+                          label="当前会话"
+                          class="q-ml-xs"
+                        />
+                        <q-badge
+                          v-if="s.expired"
+                          color="grey-6"
+                          label="已过期"
+                          class="q-ml-xs"
+                        />
+                      </q-item-label>
+                      <q-item-label caption>
+                        IP {{ s.ip || "未知" }} · 登录 {{ fmtTime(s.created_at) }} · 过期
+                        {{ fmtTime(s.expires_at) }}
+                      </q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-btn
+                        dense
+                        flat
+                        color="negative"
+                        label="踢下线"
+                        :disable="s.current || s.expired"
+                        @click="kickSession(s)"
+                      />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </q-card-section>
+              <q-card-actions align="right">
+                <q-btn flat label="关闭" v-close-popup />
+              </q-card-actions>
+            </q-card>
+          </q-dialog>
         </q-tab-panel>
 
         <!-- ============ AI 设置 ============ -->
@@ -1498,20 +1637,146 @@ async function toggleUserRole(u: UserItem) {
   }
 }
 
-function resetUserPwd(u: UserItem) {
+// ---- 添加用户 ----
+const userAddDlg = ref(false);
+const userAddBusy = ref(false);
+const addForm = reactive({ username: "", email: "", password: "", role: 1 });
+const roleOptions = [
+  { label: "普通用户", value: 1 },
+  { label: "管理员", value: 2 }
+];
+
+function openAddUser() {
+  addForm.username = "";
+  addForm.email = "";
+  addForm.password = "";
+  addForm.role = 1;
+  userAddDlg.value = true;
+}
+
+async function saveAddUser() {
+  const username = addForm.username.trim();
+  const email = addForm.email.trim();
+  if (!username) {
+    $q.notify({ message: "用户名不能为空", color: "negative" });
+    return;
+  }
+  if (!email) {
+    $q.notify({ message: "邮箱不能为空", color: "negative" });
+    return;
+  }
+  if (addForm.password.length < 8) {
+    $q.notify({ message: "密码长度至少 8 位", color: "negative" });
+    return;
+  }
+  userAddBusy.value = true;
+  try {
+    await api("/api/user/create", {
+      method: "POST",
+      body: {
+        username,
+        email,
+        password: addForm.password,
+        role: addForm.role
+      }
+    });
+    $q.notify({ message: "用户已创建", color: "positive" });
+    userAddDlg.value = false;
+    await loadUsers(1);
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+  } finally {
+    userAddBusy.value = false;
+  }
+}
+
+// ---- 编辑用户（修改用户名 / 密码） ----
+const userEditDlg = ref(false);
+const userEditBusy = ref(false);
+const editForm = reactive({ id: "", username: "", email: "", password: "" });
+
+function openEditUser(u: UserItem) {
+  editForm.id = u.id;
+  editForm.username = u.username;
+  editForm.email = u.email;
+  editForm.password = "";
+  userEditDlg.value = true;
+}
+
+async function saveEditUser() {
+  const username = editForm.username.trim();
+  if (!username) {
+    $q.notify({ message: "用户名不能为空", color: "negative" });
+    return;
+  }
+  if (editForm.password && editForm.password.length < 8) {
+    $q.notify({ message: "密码长度至少 8 位", color: "negative" });
+    return;
+  }
+  const body: Record<string, unknown> = { id: editForm.id, username };
+  if (editForm.password) body.password = editForm.password;
+
+  userEditBusy.value = true;
+  try {
+    await api("/api/user/update-info", { method: "POST", body });
+    $q.notify({
+      message: editForm.password ? "已保存，该用户的旧登录已失效" : "已保存",
+      color: "positive"
+    });
+    userEditDlg.value = false;
+    await loadUsers();
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+  } finally {
+    userEditBusy.value = false;
+  }
+}
+
+// ---- 设备管理（登录会话） ----
+interface UserSessionItem {
+  token: string;
+  ip: string;
+  device: string;
+  created_at: string;
+  expires_at: string;
+  expired: boolean;
+  current: boolean;
+}
+
+const userDevDlg = ref(false);
+const devLoading = ref(false);
+const devUser = ref<UserItem | null>(null);
+const devSessions = ref<UserSessionItem[]>([]);
+
+async function openUserDevices(u: UserItem) {
+  devUser.value = u;
+  devSessions.value = [];
+  userDevDlg.value = true;
+  devLoading.value = true;
+  try {
+    const d = await api(`/api/user/sessions?user_id=${encodeURIComponent(u.id)}`);
+    devSessions.value = Array.isArray(d.list) ? d.list : [];
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+  } finally {
+    devLoading.value = false;
+  }
+}
+
+function kickSession(s: UserSessionItem) {
+  if (!devUser.value) return;
   $q.dialog({
-    title: "重置密码",
-    message: `为「${u.username}」设置新密码（至少 8 位）`,
-    prompt: { model: "", type: "password" },
+    title: "踢下线",
+    message: `确定让「${s.device || "未知设备"}」退出登录？`,
     cancel: true
-  }).onOk(async (pwd: string) => {
-    if (!pwd || pwd.length < 8) {
-      $q.notify({ message: "密码长度至少 8 位", color: "negative" });
-      return;
-    }
+  }).onOk(async () => {
     try {
-      await api("/api/user/reset-password", { method: "POST", body: { id: u.id, password: pwd } });
-      $q.notify({ message: "密码已重置，该用户的旧登录已失效", color: "positive" });
+      await api("/api/user/kick", {
+        method: "POST",
+        body: { user_id: devUser.value!.id, token: s.token }
+      });
+      $q.notify({ message: "已踢下线", color: "positive" });
+      if (devUser.value) await openUserDevices(devUser.value);
     } catch (e) {
       $q.notify({ message: describeError(e), color: "negative" });
     }

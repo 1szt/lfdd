@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"strconv"
+
 	"server/service"
 
 	"github.com/gin-gonic/gin"
@@ -115,6 +117,96 @@ func (h *ApiUserHandler) ResetPassword(c *gin.Context) {
 		Password:  req.Password,
 		KeepToken: c.GetString("token"),
 	}); err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "ok",
+	})
+}
+
+// Create 管理员创建用户（body: username/email/password/role）
+func (h *ApiUserHandler) Create(c *gin.Context) {
+	var req service.CreateUserInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
+	out, err := service.CreateUser(req)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, out)
+}
+
+// UpdateInfo 修改用户名/密码（body: id、username、password 留空不改）
+func (h *ApiUserHandler) UpdateInfo(c *gin.Context) {
+	var req service.UpdateUserInfoInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
+	req.KeepToken = c.GetString("token")
+	if _, err := service.UpdateUserInfo(req); err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{
+		"message": "ok",
+	})
+}
+
+// Sessions 某用户的登录设备/会话列表（query: user_id）
+func (h *ApiUserHandler) Sessions(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Query("user_id"), 10, 64)
+	if err != nil || userID == 0 {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
+	out, err := service.GetUserSessions(service.GetUserSessionsInput{
+		UserID:       userID,
+		CurrentToken: c.GetString("token"),
+	})
+	if err != nil {
+		c.JSON(500, gin.H{
+			"message": "服务器内部错误",
+		})
+		return
+	}
+
+	c.JSON(200, out)
+}
+
+// Kick 踢指定设备下线（body: user_id、token）
+func (h *ApiUserHandler) Kick(c *gin.Context) {
+	var req service.KickSessionInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
+	if _, err := service.KickSession(req); err != nil {
 		c.JSON(400, gin.H{
 			"message": err.Error(),
 		})

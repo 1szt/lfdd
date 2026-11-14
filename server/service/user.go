@@ -4,9 +4,12 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"server/core/db"
 	"server/model"
+
+	"gorm.io/gorm"
 )
 
 // ------------------------ 用户管理（管理页） ------------------------
@@ -185,5 +188,213 @@ func ResetUserPassword(i ResetUserPasswordInput) (o ResetUserPasswordOutput, err
 		q = q.Where("token <> ?", i.KeepToken)
 	}
 	q.Delete(&model.Session{})
+	return o, nil
+}
+
+// ------------------------ 添加 / 编辑用户 ------------------------
+
+type CreateUserInput struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Role     int8   `json:"role"` // 1 普通 2 管理员
+}
+type CreateUserOutput struct {
+	ID int64 `json:"id,string"`
+}
+
+// CreateUser 管理员创建用户（用户名/邮箱唯一，argon2id 哈希）
+func CreateUser(i CreateUserInput) (o CreateUserOutput, err error) {
+	username := strings.TrimSpace(i.Username)
+	email := strings.ToLower(strings.TrimSpace(i.Email))
+	if username == "" {
+		return o, errors.New("用户名不能为空")
+	}
+	if utf8.RuneCountInString(username) > 32 {
+		return o, errors.New("用户名不能超过 32 个字")
+	}
+	if email == "" {
+		return o, errors.New("邮箱不能为空")
+	}
+	if len(i.Password) < 8 {
+		return o, errors.New("密码长度至少 8 位")
+	}
+	if i.Role != 1 && i.Role != 2 {
+		i.Role = 1
+	}
+
+	// 唯一性校验
+	var count int64
+	if err = db.DB.Model(&model.User{}).Where("username = ?", username).Count(&count).Error; err != nil {
+		return o, err
+	}
+	if count > 0 {
+		return o, errors.New("用户名已存在")
+	}
+	if err = db.DB.Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+		return o, err
+	}
+	if count > 0 {
+		return o, errors.New("邮箱已存在")
+	}
+
+	h, err := HashPassword(HashPasswordInput{Password: i.Password})
+	if err != nil {
+		return o, err
+	}
+	id, err := GenUserID(GenUserIDInput{})
+	if err != nil {
+		return o, err
+	}
+	user := &model.User{
+		ID:       id.ID,
+		Username: username,
+		Email:    email,
+		Password: h.Hash,
+		Role:     i.Role,
+	}
+	if err = db.DB.Create(user).Error; err != nil {
+		return o, err
+	}
+	o.ID = user.ID
+	return o, nil
+}
+
+type UpdateUserInfoInput struct {
+	ID       int64  `json:"id,string"`
+	Username string `json:"username"`        // 修改后的用户名
+	Password string `json:"password"`        // 新密码，留空则不修改
+	// 当前操作人 token：改的是自己时保留该会话
+	KeepToken string `json:"-"`
+}
+type UpdateUserInfoOutput struct {
+}
+
+// UpdateUserInfo 修改用户名/密码（改密码后旧会话作废，保留当前操作人会话）
+func UpdateUserInfo(i UpdateUserInfoInput) (o UpdateUserInfoOutput, err error) {
+	if i.ID == 0 {
+		return o, errors.New("缺少用户 ID")
+	}
+	// 先确认用户存在（避免 Updates 值未变化时 RowsAffected=0 误判）
+	var u model.User
+	if err = db.DB.First(&u, "id = ?", i.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return o, errors.New("用户不存在")
+		}
+		return o, err
+	}
+
+	updates := map[string]any{}
+
+	if username := strings.TrimSpace(i.Username); username != "" {
+		if utf8.RuneCountInString(username) > 32 {
+			return o, errors.New("用户名不能超过 32 个字")
+		}
+		var count int64
+		if err = db.DB.Model(&model.User{}).
+			Where("username = ? AND id <> ?", username, i.ID).Count(&count).Error; err != nil {
+			return o, err
+		}
+		if count > 0 {
+			return o, errors.New("用户名已存在")
+		}
+		updates["username"] = username
+	}
+
+	if i.Password != "" {
+		if len(i.Password) < 8 {
+			return o, errors.New("密码长度至少 8 位")
+		}
+		h, e := HashPassword(HashPasswordInput{Password: i.Password})
+		if e != nil {
+			return o, e
+		}
+		updates["password"] = h.Hash
+	}
+
+	if len(updates) == 0 {
+		return o, errors.New("没有要修改的内容")
+	}
+	if err = db.DB.Model(&model.User{}).Where("id = ?", i.ID).Updates(updates).Error; err != nil {
+		return o, err
+	}
+
+	// 改了密码：旧会话作废（保留当前操作人的会话）
+	if _, changed := updates["password"]; changed {
+		q := db.DB.Where("user_id = ?", i.ID)
+		if i.KeepToken != "" {
+			q = q.Where("token <> ?", i.KeepToken)
+		}
+		q.Delete(&model.Session{})
+	}
+	return o, nil
+}
+
+// ------------------------ 设备（登录会话）管理 ------------------------
+
+type GetUserSessionsInput struct {
+	UserID int64 `json:"user_id,string"`
+	// 当前操作人 token：标记哪条是自己的会话
+	CurrentToken string `json:"-"`
+}
+type UserSessionItem struct {
+	Token     string    `json:"token"`
+	IP        string    `json:"ip"`
+	Device    string    `json:"device"`
+	ExpiresAt time.Time `json:"expires_at"`
+	CreatedAt time.Time `json:"created_at"`
+	Expired   bool      `json:"expired"`
+	Current   bool      `json:"current"` // 是否当前操作人的会话
+}
+type GetUserSessionsOutput struct {
+	List []UserSessionItem `json:"list"`
+}
+
+// GetUserSessions 某用户的全部登录设备/会话（含已过期，管理页设备管理用）
+func GetUserSessions(i GetUserSessionsInput) (o GetUserSessionsOutput, err error) {
+	o.List = make([]UserSessionItem, 0)
+	if i.UserID == 0 {
+		return o, errors.New("缺少用户 ID")
+	}
+	var ss []model.Session
+	if err = db.DB.Where("user_id = ?", i.UserID).
+		Order("created_at DESC").Find(&ss).Error; err != nil {
+		return o, err
+	}
+	now := time.Now()
+	for _, s := range ss {
+		o.List = append(o.List, UserSessionItem{
+			Token:     s.Token,
+			IP:        s.IP,
+			Device:    s.Device,
+			ExpiresAt: s.ExpiresAt,
+			CreatedAt: s.CreatedAt,
+			Expired:   !s.ExpiresAt.After(now),
+			Current:   i.CurrentToken != "" && s.Token == i.CurrentToken,
+		})
+	}
+	return o, nil
+}
+
+type KickSessionInput struct {
+	UserID int64  `json:"user_id,string"`
+	Token  string `json:"token"`
+}
+type KickSessionOutput struct {
+}
+
+// KickSession 踢指定设备下线（删除其会话，token 立即失效）
+func KickSession(i KickSessionInput) (o KickSessionOutput, err error) {
+	if i.UserID == 0 || i.Token == "" {
+		return o, errors.New("参数不完整")
+	}
+	res := db.DB.Where("user_id = ? AND token = ?", i.UserID, i.Token).
+		Delete(&model.Session{})
+	if res.Error != nil {
+		return o, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return o, errors.New("会话不存在或已失效")
+	}
 	return o, nil
 }
