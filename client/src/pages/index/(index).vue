@@ -383,6 +383,9 @@ onBeforeUnmount(() => {
   flex-shrink: 0;
   overflow-y: auto;
   background: #f5f5f5;
+  /* 顶部/右侧留空：避免第一项「全部」的悬浮角标被 overflow 裁切 */
+  padding-top: 8px;
+  padding-right: 6px;
 }
 
 .sidebar-item {
