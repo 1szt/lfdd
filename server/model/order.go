@@ -43,8 +43,11 @@ type OrderItem struct {
 	// 商品名称快照
 	Name string `json:"name" gorm:"size:64;not null"`
 
-	// 单价，单位：分；下单时为 0，结单时按当时价回填并锁定
+	// 单价，单位：分；未改价时下单为 0（展示用商品当前价），改价/结单时回填并锁定
 	Price int `json:"price" gorm:"not null;default:0"`
+
+	// 是否改过价（0 未改、1 已改）：改价标记，结单时保留改后价
+	Edited int8 `json:"edited" gorm:"not null;default:0"`
 
 	// 规格快照
 	Spec string `json:"spec" gorm:"size:128"`

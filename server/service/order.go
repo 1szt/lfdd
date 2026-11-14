@@ -162,6 +162,10 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 
 	total := 0
 	for _, it := range items {
+		if it.Edited == 1 { // 改过价的保留改后价
+			total += it.Price * it.Qty
+			continue
+		}
 		g, ok := byID[it.GoodsID]
 		if !ok {
 			return o, fmt.Errorf("「%s」已删除，无法结单", it.Name)
@@ -169,9 +173,12 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 		total += g.Price * it.Qty
 	}
 
-	// 3. 事务：回填明细价 → 合计与状态一次更新
+	// 3. 事务：回填未改价明细的价 → 合计与状态一次更新
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		for _, it := range items {
+			if it.Edited == 1 {
+				continue // 改价行的价格已锁定，不覆盖
+			}
 			g := byID[it.GoodsID]
 			if e := tx.Model(&model.OrderItem{}).Where("id = ?", it.ID).
 				Update("price", g.Price).Error; e != nil {
@@ -194,6 +201,44 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 
 	o.Total = total
 	o.Count = ord.Count
+	return o, nil
+}
+
+// ------------------------ ChangePrice 改价 ------------------------
+
+type ChangePriceInput struct {
+	ID      int64 `json:"id,string"`      // 订单 ID
+	GoodsID int64 `json:"goods_id,string"` // 商品 ID（订单内明细）
+	Price   int   `json:"price"`          // 改后单价，分
+}
+type ChangePriceOutput struct{}
+
+// ChangePrice 改价：修改待结单订单里某个商品的单价（改后价立即生效并锁定，结单不覆盖）。
+// 只允许 status=0；价格必须 >= 0。
+func ChangePrice(i ChangePriceInput) (o ChangePriceOutput, err error) {
+	if i.Price < 0 {
+		return o, errors.New("价格不能为负数")
+	}
+	var ord model.Order
+	if err = db.DB.First(&ord, i.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return o, errors.New("订单不存在")
+		}
+		return o, err
+	}
+	if ord.Status != 0 {
+		return o, errors.New("已结单的订单不能改价")
+	}
+
+	res := db.DB.Model(&model.OrderItem{}).
+		Where("order_id = ? AND goods_id = ?", ord.ID, i.GoodsID).
+		Updates(map[string]any{"price": i.Price, "edited": 1})
+	if res.Error != nil {
+		return o, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return o, errors.New("订单里没有该商品")
+	}
 	return o, nil
 }
 
@@ -300,7 +345,8 @@ type GetOrdersInput struct {
 type OrderItemView struct {
 	GoodsID int64  `json:"goods_id,string"`
 	Name    string `json:"name"`
-	Price   int    `json:"price"` // 单价，分
+	Price   int    `json:"price"`    // 单价，分（未改价的待结单单为商品当前价）
+	Edited  int8   `json:"edited"`   // 是否改过价（改价标记）
 	Spec    string `json:"spec"`
 	Qty     int    `json:"qty"`
 	Image   string `json:"image"`
@@ -365,13 +411,13 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 	itemsByOrder := map[int64][]OrderItemView{}
 	for _, it := range items {
 		itemsByOrder[it.OrderID] = append(itemsByOrder[it.OrderID], OrderItemView{
-			GoodsID: it.GoodsID, Name: it.Name, Price: it.Price,
+			GoodsID: it.GoodsID, Name: it.Name, Price: it.Price, Edited: it.Edited,
 			Spec: it.Spec, Qty: it.Qty, Image: it.Image,
 		})
 	}
 
-	// 待结单订单：明细价与合计按商品表当前价实时展示（价格未锁定，结单时才回写）；
-	// 商品已删除的行价格留 0（结单时会拒绝）
+	// 待结单订单：未改价的明细按商品表当前价实时展示、合计实时算（结单时才回写锁定）；
+	// 改过价的明细保留改后价；未改价且商品已删除的行价格留 0（结单时会拒绝）
 	pendingIDs := []int64{}
 	for _, ord := range orders {
 		if ord.Status == 0 {
@@ -397,6 +443,10 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		for _, id := range pendingIDs {
 			total := 0
 			for n, v := range itemsByOrder[id] {
+				if v.Edited == 1 {
+					total += v.Price * v.Qty // 改过价：用改后价
+					continue
+				}
 				if p, ok := priceByGoods[v.GoodsID]; ok {
 					itemsByOrder[id][n].Price = p
 					total += p * v.Qty

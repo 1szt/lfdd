@@ -12,6 +12,7 @@ func apiOrderRouter() {
 	group := web.Engine.Group("/api/order")
 	group.POST("/create", middleware.OptionalGuard(), apiOrderHandler.Create)
 	group.POST("/finish", middleware.OptionalGuard(), apiOrderHandler.Finish)
+	group.POST("/price", middleware.OptionalGuard(), apiOrderHandler.ChangePrice)
 	group.POST("/void", middleware.OptionalGuard(), apiOrderHandler.Void)
 	group.POST("/delete", middleware.OptionalGuard(), apiOrderHandler.Delete)
 	group.GET("/page", middleware.OptionalGuard(), apiOrderHandler.Page)

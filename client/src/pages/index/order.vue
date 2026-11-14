@@ -95,12 +95,32 @@
               <div v-if="it.spec" class="text-caption text-grey-6 ellipsis">{{ it.spec }}</div>
             </div>
             <div class="text-caption text-grey-7">x{{ it.qty }}</div>
-            <div
-              class="text-caption text-weight-medium"
-              style="min-width: 64px; text-align: right"
-            >
-              ¥{{ fmtPrice(it.price * it.qty) }}
+            <div class="column items-end" style="min-width: 76px">
+              <div class="text-caption text-grey-7">¥{{ fmtPrice(it.price) }}</div>
+              <div class="text-caption text-weight-medium">¥{{ fmtPrice(it.price * it.qty) }}</div>
             </div>
+            <q-chip
+              v-if="it.edited === 1"
+              dense
+              size="xs"
+              flat
+              color="deep-orange"
+              text-color="white"
+              class="q-ma-none"
+            >
+              改价
+            </q-chip>
+            <q-btn
+              v-if="o.status === 0"
+              flat
+              dense
+              round
+              color="primary"
+              icon="price_change"
+              size="sm"
+              :aria-label="`修改${it.name}单价`"
+              @click="openPrice(o, it)"
+            />
           </div>
         </div>
 
@@ -182,6 +202,39 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- 改价对话框（未结单：改某商品单价，改后打改价标记） -->
+    <q-dialog v-model="priceDlg">
+      <q-card class="print-card">
+        <q-card-section class="row items-center justify-between">
+          <span class="text-body2 text-weight-medium">修改单价</span>
+          <q-icon name="price_change" color="primary" />
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <div class="text-caption text-grey-7">订单 {{ priceOrder?.order_no }}</div>
+          <div class="text-body2 text-weight-medium q-mt-sm">{{ priceItem?.name }}</div>
+
+          <q-input
+            v-model="priceVal"
+            type="number"
+            dense
+            outlined
+            label="新单价（元）"
+            class="q-mt-md price-input"
+            aria-label="新单价"
+          />
+          <div class="text-caption text-grey-6 q-mt-xs">
+            当前单价 ¥{{ priceItem ? fmtPrice(priceItem.price) : "" }}
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="取消" v-close-popup />
+          <q-btn color="primary" label="确定" unelevated :loading="savingPrice" @click="savePrice" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -209,7 +262,8 @@ const router = useRouter();
 interface OrderItem {
   goods_id: string;
   name: string;
-  price: number; // 单价，分
+  price: number; // 单价，分（未改价的待结单单为商品当前价）
+  edited: number; // 是否改过价（改价标记）
   spec: string;
   qty: number;
   image: string;
@@ -384,8 +438,52 @@ async function copyToCart(o: Order) {
   void router.push("/cart");
 }
 
-const voidingId = ref<string | null>(null); // 废单中的订单
+// ================= 改价 =================
+const priceDlg = ref(false);
+const priceOrder = ref<Order | null>(null);
+const priceItem = ref<OrderItem | null>(null);
+const priceVal = ref("");
+const savingPrice = ref(false);
 
+function openPrice(o: Order, it: OrderItem) {
+  priceOrder.value = o;
+  priceItem.value = it;
+  priceVal.value = fmtPrice(it.price); // 预填当前单价（元）
+  priceDlg.value = true;
+}
+
+// 保存改价：元 → 分提交，成功后刷新（合计/标记由后端算）
+async function savePrice() {
+  if (!priceOrder.value || !priceItem.value || savingPrice.value) return;
+  const yuan = Number(priceVal.value);
+  if (!Number.isFinite(yuan) || yuan < 0) {
+    $q.notify({ message: "请输入有效价格", color: "orange" });
+    return;
+  }
+  savingPrice.value = true;
+  try {
+    const res = await fetch("/api/order/price", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: priceOrder.value.id,
+        goods_id: priceItem.value.goods_id,
+        price: Math.round(yuan * 100)
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `改价失败（${res.status}）`);
+    $q.notify({ message: `已改价 ¥${yuan.toFixed(2)}`, color: "positive" });
+    priceDlg.value = false;
+    await loadOrders(true);
+  } catch (e) {
+    $q.notify({ message: describeErrorLocal(e), color: "negative" });
+  } finally {
+    savingPrice.value = false;
+  }
+}
+
+const voidingId = ref<string | null>(null); // 废单中的订单
 // 废单：作废未结单订单（回补库存并删除），二次确认防手误
 function confirmVoid(o: Order) {
   $q.dialog({

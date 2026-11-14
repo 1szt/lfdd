@@ -53,6 +53,27 @@ func (h *ApiOrderHandler) Finish(c *gin.Context) {
 	c.JSON(200, out)
 }
 
+// ChangePrice 改价：修改待结单订单某商品单价（打改价标记，结单不覆盖）
+// body: {"id":"1","goods_id":"101","price":1500} → 200
+func (h *ApiOrderHandler) ChangePrice(c *gin.Context) {
+	var req service.ChangePriceInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
+	if _, err := service.ChangePrice(req); err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{})
+}
+
 // Void 废单：作废未结单订单（回补库存并删除）
 // body: {"id":"1"} → 200
 func (h *ApiOrderHandler) Void(c *gin.Context) {
