@@ -215,6 +215,7 @@ type ChangePriceInput struct {
 type ChangePriceOutput struct{}
 
 // ChangePrice 改价：修改待结单订单里某个商品的单价（改后价立即生效并锁定，结单不覆盖）。
+// 改回商品当前价时自动视为重置（edited=0，恢复按商品表现时价展示）。
 // 只允许 status=0；价格必须 >= 0。
 func ChangePrice(i ChangePriceInput) (o ChangePriceOutput, err error) {
 	if i.Price < 0 {
@@ -231,10 +232,16 @@ func ChangePrice(i ChangePriceInput) (o ChangePriceOutput, err error) {
 		return o, errors.New("已结单的订单不能改价")
 	}
 
-	// 改价只记改后价：原价（商品当前价）在未结单时按商品表现时展示、结单时才写入 orig_price
+	// 与商品现价比较：相同则重置（未改价），不同才打改价标记
+	edited := int8(1)
+	var g model.Goods
+	if e := db.DB.First(&g, i.GoodsID).Error; e == nil && g.Price == i.Price {
+		edited = 0
+	}
+
 	res := db.DB.Model(&model.OrderItem{}).
 		Where("order_id = ? AND goods_id = ?", ord.ID, i.GoodsID).
-		Updates(map[string]any{"price": i.Price, "edited": 1})
+		Updates(map[string]any{"price": i.Price, "edited": edited})
 	if res.Error != nil {
 		return o, res.Error
 	}
@@ -349,7 +356,7 @@ type OrderItemView struct {
 	Name       string `json:"name"`
 	Price      int    `json:"price"`      // 单价，分（未改价的待结单单为商品当前价；改价/结单后为锁定价）
 	Edited     int8   `json:"edited"`     // 是否改过价（改价标记）
-	OrigPrice  int    `json:"orig_price"` // 改价前原价，分（仅改过价的行有值，展示对比用）
+	OrigPrice  int    `json:"orig_price"` // 原价，分（未结单=商品现价；已结单=结单时商品价）
 	Spec       string `json:"spec"`
 	Qty        int    `json:"qty"`
 	Image      string `json:"image"`
@@ -459,9 +466,9 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 				itemsByOrder[id][n].Name = g.Name
 				itemsByOrder[id][n].Spec = g.Spec
 				itemsByOrder[id][n].Image = g.Image
+				itemsByOrder[id][n].OrigPrice = g.Price // 原价恒为商品现价（供改价对比/重置用）
 				if v.Edited == 1 {
 					total += v.Price * v.Qty // 改过价：用改后价
-					itemsByOrder[id][n].OrigPrice = g.Price // 原价按商品表现时价（结单时才写入 orig_price）
 					continue
 				}
 				itemsByOrder[id][n].Price = g.Price

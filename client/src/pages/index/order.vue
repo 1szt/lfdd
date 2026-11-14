@@ -64,6 +64,15 @@
           />
           <q-btn
             v-if="o.status === 0"
+            color="teal"
+            icon="price_change"
+            label="改价"
+            unelevated
+            size="sm"
+            @click="openPrice(o)"
+          />
+          <q-btn
+            v-if="o.status === 0"
             color="negative"
             icon="block"
             label="废单"
@@ -121,17 +130,6 @@
             >
               改价
             </q-chip>
-            <q-btn
-              v-if="o.status === 0"
-              flat
-              dense
-              round
-              color="primary"
-              icon="price_change"
-              size="sm"
-              :aria-label="`修改${it.name}单价`"
-              @click="openPrice(o, it)"
-            />
           </div>
         </div>
 
@@ -214,35 +212,54 @@
       </q-card>
     </q-dialog>
 
-    <!-- 改价对话框（未结单：改某商品单价，改后打改价标记） -->
+    <!-- 批量改价对话框（未结单：整单所有商品改单价，改回原价即重置） -->
     <q-dialog v-model="priceDlg">
-      <q-card class="print-card">
+      <q-card class="print-card price-card">
         <q-card-section class="row items-center justify-between">
-          <span class="text-body2 text-weight-medium">修改单价</span>
+          <span class="text-body2 text-weight-medium">批量改价</span>
           <q-icon name="price_change" color="primary" />
         </q-card-section>
 
         <q-card-section class="q-pt-none">
           <div class="text-caption text-grey-7">订单 {{ priceOrder?.order_no }}</div>
-          <div class="text-body2 text-weight-medium q-mt-sm">{{ priceItem?.name }}</div>
 
-          <q-input
-            v-model="priceVal"
-            type="number"
-            dense
-            outlined
-            label="新单价（元）"
-            class="q-mt-md price-input"
-            aria-label="新单价"
-          />
-          <div class="text-caption text-grey-6 q-mt-xs">
-            当前单价 ¥{{ priceItem ? fmtPrice(priceItem.price) : "" }}
+          <div class="q-mt-sm price-rows">
+            <div v-for="r in priceRows" :key="r.goods_id" class="price-row row items-center">
+              <div class="col">
+                <div class="text-caption ellipsis">{{ r.name }}</div>
+                <div class="text-caption text-grey-6">
+                  原价 ¥{{ fmtPrice(r.orig) }}
+                  <span v-if="r.edited" class="text-weight-medium text-negative q-ml-xs">
+                    现改价 ¥{{ fmtPrice(r.initial) }}
+                  </span>
+                </div>
+              </div>
+              <q-input
+                v-model="r.val"
+                type="number"
+                dense
+                outlined
+                class="price-input"
+                :aria-label="`${r.name}新单价`"
+              />
+              <q-btn
+                flat
+                dense
+                round
+                color="grey-7"
+                icon="undo"
+                size="sm"
+                :aria-label="`重置${r.name}单价`"
+                @click="resetRow(r)"
+              />
+            </div>
           </div>
         </q-card-section>
 
         <q-card-actions align="right">
+          <q-btn flat label="全部重置" color="grey-8" icon="restart_alt" @click="resetAll" />
           <q-btn flat label="取消" v-close-popup />
-          <q-btn color="primary" label="确定" unelevated :loading="savingPrice" @click="savePrice" />
+          <q-btn color="primary" label="保存" unelevated :loading="savingPrice" @click="savePrice" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -275,7 +292,7 @@ interface OrderItem {
   name: string;
   price: number; // 单价，分（未改价的待结单单为商品当前价；改价/结单后为锁定价）
   edited: number; // 是否改过价（改价标记）
-  orig_price: number; // 改价前原价，分（仅改过价的行有值）
+  orig_price: number; // 原价，分（未结单=商品现价；已结单=结单时商品价）
   spec: string;
   qty: number;
   image: string;
@@ -450,42 +467,78 @@ async function copyToCart(o: Order) {
   void router.push("/cart");
 }
 
-// ================= 改价 =================
+// ================= 批量改价 =================
 const priceDlg = ref(false);
 const priceOrder = ref<Order | null>(null);
-const priceItem = ref<OrderItem | null>(null);
-const priceVal = ref("");
 const savingPrice = ref(false);
 
-function openPrice(o: Order, it: OrderItem) {
+// 改价行：orig=原价（商品现价，分）、initial=打开时生效价（分）、val=输入框（元）
+interface PriceRow {
+  goods_id: string;
+  name: string;
+  orig: number;
+  initial: number;
+  edited: number;
+  val: string;
+}
+const priceRows = ref<PriceRow[]>([]);
+
+function openPrice(o: Order) {
   priceOrder.value = o;
-  priceItem.value = it;
-  priceVal.value = fmtPrice(it.price); // 预填当前单价（元）
+  priceRows.value = o.items.map((it) => ({
+    goods_id: it.goods_id,
+    name: it.name,
+    orig: it.orig_price || it.price,
+    initial: it.price,
+    edited: it.edited,
+    val: fmtPrice(it.price)
+  }));
   priceDlg.value = true;
 }
 
-// 保存改价：元 → 分提交，成功后刷新（合计/标记由后端算）
+// 单行重置：填回原价（保存时与商品现价一致会自动取消改价标记）
+function resetRow(r: PriceRow) {
+  r.val = fmtPrice(r.orig);
+}
+
+// 全部重置：所有行填回原价
+function resetAll() {
+  for (const r of priceRows.value) r.val = fmtPrice(r.orig);
+}
+
+// 保存：只提交有变动的行（元 → 分），成功后刷新（合计/标记由后端算）
 async function savePrice() {
-  if (!priceOrder.value || !priceItem.value || savingPrice.value) return;
-  const yuan = Number(priceVal.value);
-  if (!Number.isFinite(yuan) || yuan < 0) {
-    $q.notify({ message: "请输入有效价格", color: "orange" });
+  if (!priceOrder.value || savingPrice.value) return;
+  const changed: { goods_id: string; price: number }[] = [];
+  for (const r of priceRows.value) {
+    const yuan = Number(r.val);
+    if (!Number.isFinite(yuan) || yuan < 0) {
+      $q.notify({ message: `「${r.name}」请输入有效价格`, color: "orange" });
+      return;
+    }
+    const fen = Math.round(yuan * 100);
+    if (fen !== r.initial) changed.push({ goods_id: r.goods_id, price: fen });
+  }
+  if (changed.length === 0) {
+    $q.notify({ message: "价格没有变动", color: "grey-7" });
+    priceDlg.value = false;
     return;
   }
   savingPrice.value = true;
   try {
-    const res = await fetch("/api/order/price", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: priceOrder.value.id,
-        goods_id: priceItem.value.goods_id,
-        price: Math.round(yuan * 100)
-      })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `改价失败（${res.status}）`);
-    $q.notify({ message: `已改价 ¥${yuan.toFixed(2)}`, color: "positive" });
+    await Promise.all(
+      changed.map((c) =>
+        fetch("/api/order/price", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: priceOrder.value!.id, ...c })
+        }).then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.message || `改价失败（${res.status}）`);
+        })
+      )
+    );
+    $q.notify({ message: `已改价 ${changed.length} 项`, color: "positive" });
     priceDlg.value = false;
     await loadOrders(true);
   } catch (e) {
@@ -689,5 +742,30 @@ onMounted(() => {
 /* 操作按钮行：窄屏自动折行，不与订单号抢空间 */
 .order-actions {
   flex-wrap: wrap;
+}
+
+/* 批量改价对话框 */
+.price-card {
+  width: 420px;
+}
+
+.price-rows {
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.price-row {
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f5f5f5;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  .price-input {
+    width: 110px;
+    flex-shrink: 0;
+  }
 }
 </style>
