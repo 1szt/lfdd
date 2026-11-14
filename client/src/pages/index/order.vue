@@ -1,16 +1,27 @@
 <template>
   <q-page class="order-page column" :style-fn="pageStyle">
-    <!-- 标题栏 -->
+    <!-- 标题栏：未结单 / 已结单 两个页签 -->
     <div class="row items-center justify-between q-px-md q-py-sm">
-      <span class="text-body2 text-weight-medium">订单</span>
+      <q-tabs
+        v-model="statusTab"
+        dense
+        active-color="primary"
+        class="col"
+        @update:model-value="onTabChange"
+      >
+        <q-tab name="0" label="未结单" />
+        <q-tab name="1" label="已结单" />
+      </q-tabs>
       <q-btn flat dense size="sm" color="primary" icon="refresh" label="刷新" @click="loadOrders(true)" />
     </div>
 
     <!-- 空态 -->
     <div v-if="orders.length === 0 && !loading" class="column items-center justify-center empty-box">
       <q-icon name="receipt_long" size="64px" color="grey-4" />
-      <div class="text-body1 text-grey-7 q-mt-md">还没有订单</div>
-      <q-btn class="q-mt-md" color="primary" label="去点单" to="/" />
+      <div class="text-body1 text-grey-7 q-mt-md">
+        {{ statusTab === "0" ? "没有未结单的订单" : "没有已结单的订单" }}
+      </div>
+      <q-btn v-if="statusTab === '0'" class="q-mt-md" color="primary" label="去点单" to="/" />
     </div>
 
     <div v-else class="order-list">
@@ -42,6 +53,16 @@
             size="sm"
             :loading="printingId === o.id"
             @click="openPrint(o)"
+          />
+          <q-btn
+            v-if="o.status === 1"
+            color="negative"
+            icon="delete"
+            label="删除"
+            unelevated
+            size="sm"
+            :loading="deletingId === o.id"
+            @click="confirmDelete(o)"
           />
         </div>
 
@@ -184,6 +205,7 @@ interface Order {
 }
 
 const PAGE_SIZE = 30;
+const statusTab = ref("0"); // "0" 未结单、"1" 已结单
 const orders = ref<Order[]>([]);
 const total = ref(0);
 const page = ref(1);
@@ -192,6 +214,11 @@ const loadingMore = ref(false);
 const errorMsg = ref("");
 
 const hasMore = computed(() => orders.value.length < total.value);
+
+// 切页签：重新拉对应状态的第一页
+function onTabChange() {
+  void loadOrders(true);
+}
 
 // QPage styleFn：header/footer 占位后剩余高度，让页面撑满、列表区各自滚动
 function pageStyle(offset: number, height: number) {
@@ -215,7 +242,9 @@ async function loadOrders(reset: boolean) {
     loadingMore.value = true;
   }
   try {
-    const res = await fetch(`/api/order/page?page=${page.value}&page_size=${PAGE_SIZE}`);
+    const res = await fetch(
+      `/api/order/page?page=${page.value}&page_size=${PAGE_SIZE}&status=${statusTab.value}`
+    );
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `请求失败（${res.status}）`);
 
@@ -255,6 +284,40 @@ async function finishOrder(o: Order) {
     $q.notify({ message: describeErrorLocal(e), color: "negative" });
   } finally {
     finishingId.value = null;
+  }
+}
+
+const deletingId = ref<string | null>(null); // 删除中的订单
+
+// 删除已结单订单：二次确认防手误
+function confirmDelete(o: Order) {
+  $q.dialog({
+    title: "删除订单",
+    message: `确定删除订单 ${o.order_no} 吗？删除后不可恢复`,
+    cancel: true,
+    persistent: true
+  }).onOk(() => {
+    void deleteOrder(o);
+  });
+}
+
+async function deleteOrder(o: Order) {
+  if (deletingId.value) return;
+  deletingId.value = o.id;
+  try {
+    const res = await fetch("/api/order/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: o.id })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `删除失败（${res.status}）`);
+    $q.notify({ message: "已删除", color: "positive" });
+    await loadOrders(true);
+  } catch (e) {
+    $q.notify({ message: describeErrorLocal(e), color: "negative" });
+  } finally {
+    deletingId.value = null;
   }
 }
 

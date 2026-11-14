@@ -53,12 +53,34 @@ func (h *ApiOrderHandler) Finish(c *gin.Context) {
 	c.JSON(200, out)
 }
 
+// Delete 删除订单（仅已结单）
+// body: {"id":"1"} → 200
+func (h *ApiOrderHandler) Delete(c *gin.Context) {
+	var req service.DeleteOrderInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+
+	if _, err := service.DeleteOrder(req); err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, gin.H{})
+}
+
 // Page 订单分页（最新在前，含明细，供列表展示与小票打印）
-// query: page（默认 1）、page_size（默认 20，上限 100）
+// query: page（默认 1）、page_size（默认 20，上限 100）、status（-1 全部，0 未结单，1 已结单）
 func (h *ApiOrderHandler) Page(c *gin.Context) {
 	var req struct {
 		Page     int `form:"page"`
 		PageSize int `form:"page_size"`
+		Status   int `form:"status"`
 	}
 	if err := c.ShouldBindQuery(&req); err != nil {
 		c.JSON(400, gin.H{
@@ -66,10 +88,14 @@ func (h *ApiOrderHandler) Page(c *gin.Context) {
 		})
 		return
 	}
+	if _, ok := c.GetQuery("status"); !ok {
+		req.Status = -1 // 未传 = 全部
+	}
 
 	out, err := service.GetOrders(service.GetOrdersInput{
 		Page:     req.Page,
 		PageSize: req.PageSize,
+		Status:   req.Status,
 	})
 	if err != nil {
 		c.JSON(500, gin.H{

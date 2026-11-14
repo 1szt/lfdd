@@ -197,11 +197,43 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 	return o, nil
 }
 
+// ------------------------ DeleteOrder 删除订单 ------------------------
+
+type DeleteOrderInput struct {
+	ID int64 `json:"id,string"` // 订单 ID
+}
+type DeleteOrderOutput struct{}
+
+// DeleteOrder 删除订单：只允许删除已结单（status=1）的订单，连明细一并删除
+func DeleteOrder(i DeleteOrderInput) (o DeleteOrderOutput, err error) {
+	var ord model.Order
+	if err = db.DB.First(&ord, i.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return o, errors.New("订单不存在")
+		}
+		return o, err
+	}
+	if ord.Status != 1 {
+		return o, errors.New("未结单的订单不能删除")
+	}
+	err = db.DB.Transaction(func(tx *gorm.DB) error {
+		if e := tx.Where("order_id = ?", ord.ID).Delete(&model.OrderItem{}).Error; e != nil {
+			return e
+		}
+		return tx.Delete(&model.Order{}, ord.ID).Error
+	})
+	if err != nil {
+		return o, err
+	}
+	return o, nil
+}
+
 // ------------------------ GetOrders 订单分页 ------------------------
 
 type GetOrdersInput struct {
 	Page     int `json:"page"`      // 页码，从 1 开始
 	PageSize int `json:"page_size"` // 每页条数
+	Status   int `json:"status"`    // -1 全部（默认）、0 未结单、1 已结单
 }
 type OrderItemView struct {
 	GoodsID int64  `json:"goods_id,string"`
@@ -240,11 +272,15 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		i.PageSize = 100
 	}
 
-	if err = db.DB.Model(&model.Order{}).Count(&o.Total).Error; err != nil {
+	q := db.DB.Model(&model.Order{})
+	if i.Status == 0 || i.Status == 1 {
+		q = q.Where("status = ?", i.Status)
+	}
+	if err = q.Count(&o.Total).Error; err != nil {
 		return o, err
 	}
 	var orders []model.Order
-	if err = db.DB.Order("id DESC").Limit(i.PageSize).Offset((i.Page - 1) * i.PageSize).
+	if err = q.Order("id DESC").Limit(i.PageSize).Offset((i.Page - 1) * i.PageSize).
 		Find(&orders).Error; err != nil {
 		return o, err
 	}
@@ -280,6 +316,7 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 			pendingIDs = append(pendingIDs, ord.ID)
 		}
 	}
+	pendingTotal := map[int64]int{} // 订单 ID → 实时合计
 	if len(pendingIDs) > 0 {
 		pendingGoods := []int64{}
 		for _, id := range pendingIDs {
@@ -303,11 +340,7 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 					total += p * v.Qty
 				}
 			}
-			for n, ord := range o.List {
-				if ord.ID == id {
-					o.List[n].Total = total
-				}
-			}
+			pendingTotal[id] = total
 		}
 	}
 
@@ -316,10 +349,14 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		if list == nil {
 			list = []OrderItemView{} // 保证输出 [] 而非 null
 		}
+		total := ord.Total
+		if ord.Status == 0 {
+			total = pendingTotal[ord.ID] // 待结单用实时合计
+		}
 		o.List = append(o.List, OrderView{
 			ID:        ord.ID,
 			OrderNo:   ord.OrderNo,
-			Total:     ord.Total,
+			Total:     total,
 			Count:     ord.Count,
 			Status:    ord.Status,
 			CreatedAt: ord.CreatedAt.Format("2006-01-02 15:04:05"),
