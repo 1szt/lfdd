@@ -366,13 +366,14 @@
 
         <!-- ============ 用户管理 ============ -->
         <q-tab-panel name="users" class="q-pa-none q-pt-sm">
-          <q-toolbar class="q-px-none">
+          <!-- 工具栏：手机上搜索框独占一行，按钮换行到第二行 -->
+          <div class="row q-gutter-sm items-center q-mb-xs full-width">
             <q-input
               v-model="userKeyword"
               dense
               outlined
+              class="col-12 col-sm-5"
               placeholder="搜索用户名 / 邮箱 / 姓名"
-              style="max-width: 260px"
               clearable
               @keyup.enter="loadUsers(1)"
             >
@@ -380,18 +381,19 @@
                 <q-icon name="search" class="cursor-pointer" @click="loadUsers(1)" />
               </template>
             </q-input>
-            <q-btn class="q-ml-sm" flat dense icon="refresh" label="刷新" @click="loadUsers()" />
-            <q-space />
-            <q-btn
-              color="primary"
-              dense
-              icon="person_add"
-              label="添加用户"
-              unelevated
-              @click="openAddUser"
-            />
-            <span class="text-caption text-grey-6 q-ml-sm">共 {{ userTotal }} 位用户</span>
-          </q-toolbar>
+            <div class="row no-wrap q-gutter-sm items-center">
+              <q-btn flat dense icon="refresh" label="刷新" @click="loadUsers()" />
+              <q-btn
+                color="primary"
+                dense
+                icon="person_add"
+                label="添加用户"
+                unelevated
+                @click="openAddUser"
+              />
+              <span class="text-caption text-grey-6 gt-xs">共 {{ userTotal }} 位用户</span>
+            </div>
+          </div>
 
           <div v-if="usersLoading" class="text-grey-6 q-pa-md">加载中…</div>
 
@@ -405,7 +407,7 @@
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-medium">
+                <q-item-label class="text-weight-medium ellipsis">
                   {{ u.name || u.username }}
                   <q-badge v-if="u.id === meId" color="orange" label="我" class="q-ml-xs" />
                   <q-badge
@@ -414,49 +416,62 @@
                     class="q-ml-xs"
                   />
                 </q-item-label>
-                <q-item-label caption>
+                <q-item-label caption class="ellipsis">
                   {{ u.username }} · {{ u.email }}
-                  <span v-if="u.last_login_at"> · 最近登录 {{ fmtTime(u.last_login_at) }}</span>
+                  <span v-if="u.last_login_at" class="gt-xs">
+                    · 最近登录 {{ fmtTime(u.last_login_at) }}
+                  </span>
                 </q-item-label>
               </q-item-section>
+              <!-- 操作区：竖排两行图标，避免手机上一行排不下 -->
               <q-item-section side>
-                <div class="row no-wrap q-gutter-xs items-center">
-                  <q-toggle
-                    :model-value="u.status === 1"
-                    :label="u.status === 1 ? '正常' : '禁用'"
-                    dense
-                    :color="u.status === 1 ? 'positive' : 'negative'"
-                    @update:model-value="(v: boolean) => toggleUserStatus(u, v)"
-                  />
-                  <q-btn
-                    dense
-                    flat
-                    :label="u.role === 2 ? '设为普通' : '设为管理员'"
-                    @click="toggleUserRole(u)"
-                  />
-                  <q-btn
-                    dense
-                    flat
-                    icon="edit"
-                    aria-label="编辑用户"
-                    @click="openEditUser(u)"
-                  />
-                  <q-btn
-                    dense
-                    flat
-                    icon="devices"
-                    aria-label="设备管理"
-                    @click="openUserDevices(u)"
-                  />
-                  <q-btn
-                    dense
-                    flat
-                    icon="delete"
-                    color="negative"
-                    aria-label="删除用户"
-                    :disable="u.id === meId"
-                    @click="removeUser(u)"
-                  />
+                <div class="column items-end q-gutter-xs">
+                  <div class="row no-wrap items-center q-gutter-xs">
+                    <q-toggle
+                      :model-value="u.status === 1"
+                      dense
+                      :color="u.status === 1 ? 'positive' : 'negative'"
+                      :title="u.status === 1 ? '点击禁用' : '点击启用'"
+                      @update:model-value="(v: boolean) => toggleUserStatus(u, v)"
+                    />
+                    <q-btn
+                      dense
+                      flat
+                      round
+                      icon="admin_panel_settings"
+                      :color="u.role === 2 ? 'purple' : 'grey-6'"
+                      :title="u.role === 2 ? '当前是管理员，点击设为普通' : '点击设为管理员'"
+                      @click="toggleUserRole(u)"
+                    />
+                  </div>
+                  <div class="row no-wrap items-center q-gutter-xs">
+                    <q-btn
+                      dense
+                      flat
+                      round
+                      icon="edit"
+                      title="编辑用户名 / 密码"
+                      @click="openEditUser(u)"
+                    />
+                    <q-btn
+                      dense
+                      flat
+                      round
+                      icon="devices"
+                      title="设备管理"
+                      @click="openUserDevices(u)"
+                    />
+                    <q-btn
+                      dense
+                      flat
+                      round
+                      icon="delete"
+                      color="negative"
+                      title="删除用户"
+                      :disable="u.id === meId"
+                      @click="removeUser(u)"
+                    />
+                  </div>
                 </div>
               </q-item-section>
             </q-item>
