@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"server/core/db"
@@ -62,6 +63,9 @@ type GetAiSettingsOutput struct {
 	APIKey       string `json:"api_key"`
 	Model        string `json:"model"`
 	SystemPrompt string `json:"system_prompt"`
+	// UserPromptTemplate 真实拼接的 user 消息模板（商品列表取当前上架商品，
+	// 与 MatchGoods 实际发送一致；点单文字用占位符），供管理页「拼接后的提示词」展示
+	UserPromptTemplate string `json:"user_prompt_template"`
 }
 
 // GetAiSettings 读取 AI 配置（DB 优先，env/内置默认兜底），供管理页展示编辑
@@ -70,6 +74,17 @@ func GetAiSettings(i GetAiSettingsInput) (o GetAiSettingsOutput, err error) {
 	o.APIKey = getCfg(CfgAiAPIKey, "LFDD_AI_API_KEY", "")
 	o.Model = getCfg(CfgAiModel, "LFDD_AI_MODEL", "deepseek-chat")
 	o.SystemPrompt = getCfg(CfgAiSystemPrompt, "", DefaultAiSystemPrompt)
+
+	// 拼真实 user 消息模板：与 MatchGoods 的 fmt.Sprintf 结构完全一致
+	list, _, err := buildMatchGoodsList()
+	if err != nil {
+		return o, err
+	}
+	if list == "" {
+		o.UserPromptTemplate = "（暂无上架商品）"
+	} else {
+		o.UserPromptTemplate = fmt.Sprintf("商品列表：\n%s\n用户点单：<用户输入的文字>", list)
+	}
 	return o, nil
 }
 

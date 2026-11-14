@@ -60,27 +60,17 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 	}
 
 	// 1. 取上架商品列表作为提示词素材
-	var goods []model.Goods
-	if err = db.DB.Where("status = ?", 1).Order("sort ASC, id DESC").Find(&goods).Error; err != nil {
+	list, byID, err := buildMatchGoodsList()
+	if err != nil {
 		return o, err
 	}
-	if len(goods) == 0 {
+	if len(byID) == 0 {
 		return o, errors.New("暂无上架商品")
-	}
-	byID := make(map[int64]model.Goods, len(goods))
-	var list strings.Builder
-	for _, g := range goods {
-		line := fmt.Sprintf("- id=%d 名称=%s", g.ID, g.Name)
-		if g.Spec != "" {
-			line += " 规格=" + g.Spec
-		}
-		list.WriteString(line + "\n")
-		byID[g.ID] = g
 	}
 
 	// 2. 调大模型（OpenAI 兼容 /chat/completions）：系统提示词 DB 优先，未配置用内置默认
 	system := getCfg(CfgAiSystemPrompt, "", DefaultAiSystemPrompt)
-	user := fmt.Sprintf("商品列表：\n%s\n用户点单：%s", list.String(), text)
+	user := fmt.Sprintf("商品列表：\n%s\n用户点单：%s", list, text)
 
 	completion, err := chatCompletion(ChatCompletionInput{
 		APIKey: apiKey, System: system, User: user,
@@ -131,6 +121,27 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 		})
 	}
 	return o, nil
+}
+
+// buildMatchGoodsList 拼接上架商品列表文本（提示词 user 消息的固定素材）。
+// 返回逐行 "- id=xxx 名称=xxx 规格=xxx\n" 的文本 + id→商品映射；无上架商品时文本为空、映射为空。
+// MatchGoods 实际发送与管理页「拼接后的提示词展示」共用此函数，保证所见即所得。
+func buildMatchGoodsList() (list string, byID map[int64]model.Goods, err error) {
+	var goods []model.Goods
+	if err = db.DB.Where("status = ?", 1).Order("sort ASC, id DESC").Find(&goods).Error; err != nil {
+		return "", nil, err
+	}
+	byID = make(map[int64]model.Goods, len(goods))
+	var sb strings.Builder
+	for _, g := range goods {
+		line := fmt.Sprintf("- id=%d 名称=%s", g.ID, g.Name)
+		if g.Spec != "" {
+			line += " 规格=" + g.Spec
+		}
+		sb.WriteString(line + "\n")
+		byID[g.ID] = g
+	}
+	return sb.String(), byID, nil
 }
 
 type ChatCompletionInput struct {

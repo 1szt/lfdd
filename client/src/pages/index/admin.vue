@@ -525,6 +525,21 @@
                   label="系统提示词"
                   hint="匹配点单文字时发给大模型的指令；要求只输出 JSON 数组 [{&quot;id&quot;:&quot;商品id&quot;,&quot;qty&quot;:数量}]"
                 />
+
+                <!-- 拼接后的完整提示词展示：system 提示词 + 每次点单拼接的用户消息 -->
+                <div class="text-caption text-grey-7 q-mt-md">
+                  拼接后的完整提示词（每次点单实际发送给大模型的内容，随上方编辑实时更新，保存后生效）
+                </div>
+                <q-input
+                  :model-value="aiPromptPreview"
+                  type="textarea"
+                  readonly
+                  outlined
+                  autogrow
+                  :input-style="{ fontFamily: 'monospace', fontSize: '13px' }"
+                  class="q-mt-xs"
+                />
+
                 <q-btn
                   class="q-mt-sm"
                   color="primary"
@@ -1537,6 +1552,8 @@ const aiSaving = ref(false);
 const aiTesting = ref(false);
 const aiTestResult = ref("");
 const aiTestOk = ref(false);
+// 后端按当前上架商品真实拼接的 user 消息模板（切到本页签时刷新）
+const aiUserTemplate = ref("");
 
 async function loadAi() {
   try {
@@ -1545,6 +1562,7 @@ async function loadAi() {
     aiForm.api_key = d.api_key ?? "";
     aiForm.model = d.model ?? "";
     aiForm.system_prompt = d.system_prompt ?? "";
+    aiUserTemplate.value = d.user_prompt_template ?? "";
     aiTestResult.value = "";
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
@@ -1604,6 +1622,14 @@ async function testAi() {
     aiTesting.value = false;
   }
 }
+
+// 拼接后的完整提示词：system 提示词（输入框实时值）+ 后端真实拼接的 user 消息
+// （user 部分由 /api/ai/settings 返回，商品列表取当前上架商品，与 MatchGoods 实际发送一致）
+const aiPromptPreview = computed(() => {
+  const sys = aiForm.system_prompt.trim() || "（系统提示词为空）";
+  const user = aiUserTemplate.value || "（商品列表加载中…）";
+  return "【system 系统提示词】\n" + sys + "\n\n【user 用户消息】\n" + user;
+});
 
 // 切到用户管理 / AI 设置页签时懒加载数据
 watch(tab, (v) => {
