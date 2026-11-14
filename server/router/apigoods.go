@@ -7,7 +7,7 @@ import (
 )
 
 // apigoods 商品接口：侧边菜单 + 商品页面 + 图片直出免登录（OptionalGuard），
-// 新建/修改/删除/顺序管理/图片上传须登录（AuthGuard）
+// 新建/修改/删除/顺序管理/图片上传仅管理员（RoleGuard）
 func apiGoodsRouter() {
 	apiGoodsHandler := &handler.ApiGoodsHandler{}
 	group := web.Engine.Group("/api/goods")
@@ -16,12 +16,12 @@ func apiGoodsRouter() {
 	group.GET("/sidebar", middleware.OptionalGuard(), apiGoodsHandler.Sidebar)
 	group.GET("/page", middleware.OptionalGuard(), apiGoodsHandler.Page)
 
-	// 商品管理（登录）
-	group.POST("/create", middleware.AuthGuard(), apiGoodsHandler.Create)
-	group.POST("/update", middleware.AuthGuard(), apiGoodsHandler.Update)
-	group.POST("/delete", middleware.AuthGuard(), apiGoodsHandler.Delete)
-	group.POST("/sort", middleware.AuthGuard(), apiGoodsHandler.Sort)
-	group.POST("/upload", middleware.AuthGuard(), apiGoodsHandler.Upload)
+	// 商品管理（仅管理员：RoleGuard）
+	group.POST("/create", middleware.RoleGuard(), apiGoodsHandler.Create)
+	group.POST("/update", middleware.RoleGuard(), apiGoodsHandler.Update)
+	group.POST("/delete", middleware.RoleGuard(), apiGoodsHandler.Delete)
+	group.POST("/sort", middleware.RoleGuard(), apiGoodsHandler.Sort)
+	group.POST("/upload", middleware.RoleGuard(), apiGoodsHandler.Upload)
 	group.POST("/match", middleware.OptionalGuard(), apiGoodsHandler.Match)
 
 	// 图片直出（免登录）：GET /api/upload/{hash}{ext}（goods.image 存的就是这个路径）

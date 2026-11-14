@@ -14,8 +14,6 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
-
-	"github.com/1szt/go-pkg/env"
 )
 
 // ------------------------ MatchGoods AI 商品匹配 ------------------------
@@ -24,7 +22,7 @@ import (
 // 前端据此把商品加入购物车。
 
 const matchTextMaxRunes = 1000 // 点单文字长度上限（字符）
-const matchMaxQty = 500       // 单商品匹配数量上限
+const matchMaxQty = 500        // 单商品匹配数量上限
 
 type MatchGoodsInput struct {
 	Text string `json:"text"` // 用户自然语言点单描述，如「两杯柠檬水」
@@ -56,9 +54,9 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 	if utf8.RuneCountInString(text) > matchTextMaxRunes {
 		return o, fmt.Errorf("点单内容不能超过 %d 个字", matchTextMaxRunes)
 	}
-	apiKey := env.Get("LFDD_AI_API_KEY")
+	apiKey := getCfg(CfgAiAPIKey, "LFDD_AI_API_KEY", "")
 	if apiKey == "" {
-		return o, errors.New("未配置大模型：请在 data/.env 设置 LFDD_AI_API_KEY")
+		return o, errors.New("未配置大模型：请到管理页「AI 设置」填写 API Key")
 	}
 
 	// 1. 取上架商品列表作为提示词素材
@@ -80,11 +78,8 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 		byID[g.ID] = g
 	}
 
-	// 2. 调大模型（OpenAI 兼容 /chat/completions）
-	system := "你是购物匹配助手。根据用户描述从商品列表中模糊匹配挑选商品并给出数量。" +
-		"只输出一个 JSON 数组，元素格式 {\"id\":\"商品id\",\"qty\":购买数量}；" +
-		"id 必须来自商品列表，qty 为 1-200 的整数；没有匹配的商品时输出 []。" +
-		"不要输出任何其他文字、解释或代码块标记。"
+	// 2. 调大模型（OpenAI 兼容 /chat/completions）：系统提示词 DB 优先，未配置用内置默认
+	system := getCfg(CfgAiSystemPrompt, "", DefaultAiSystemPrompt)
 	user := fmt.Sprintf("商品列表：\n%s\n用户点单：%s", list.String(), text)
 
 	completion, err := chatCompletion(ChatCompletionInput{
@@ -147,13 +142,37 @@ type ChatCompletionOutput struct {
 	Content string `json:"content"` // 首个 choice 的 content
 }
 
-// chatCompletion 调 OpenAI 兼容的 chat/completions，返回首个 choice 的 content
+// chatCompletion 调 OpenAI 兼容的 chat/completions（地址/模型走配置），返回首个 choice 的 content
 func chatCompletion(i ChatCompletionInput) (o ChatCompletionOutput, err error) {
-	baseURL := env.Get("LFDD_AI_BASE_URL")
+	ext, err := chatCompletionExt(ChatCompletionExtInput{
+		BaseURL: getCfg(CfgAiBaseURL, "LFDD_AI_BASE_URL", DefaultAiBaseURL),
+		Model:   getCfg(CfgAiModel, "LFDD_AI_MODEL", "deepseek-chat"),
+		APIKey:  i.APIKey,
+		System:  i.System,
+		User:    i.User,
+	})
+	o.Content = ext.Content
+	return o, err
+}
+
+type ChatCompletionExtInput struct {
+	BaseURL string `json:"base_url"` // 接口地址（不带 /chat/completions）
+	Model   string `json:"model"`
+	APIKey  string `json:"api_key"`
+	System  string `json:"system"`
+	User    string `json:"user"`
+}
+type ChatCompletionExtOutput struct {
+	Content string `json:"content"`
+}
+
+// chatCompletionExt 按显式地址/模型调 chat/completions（测试连接用已填未存的值）
+func chatCompletionExt(i ChatCompletionExtInput) (o ChatCompletionExtOutput, err error) {
+	baseURL := i.BaseURL
 	if baseURL == "" {
-		baseURL = "https://api.deepseek.com/v1"
+		baseURL = DefaultAiBaseURL
 	}
-	model := env.Get("LFDD_AI_MODEL")
+	model := i.Model
 	if model == "" {
 		model = "deepseek-chat"
 	}

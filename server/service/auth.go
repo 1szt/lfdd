@@ -116,6 +116,16 @@ func Register(i RegisterInput) (o RegisterOutput, err error) {
 		return o, err
 	}
 
+	// 2.5 首个注册用户自动成为管理员（role=2），后续用户默认普通（role=1）
+	var userCount int64
+	if err = db.DB.Model(&model.User{}).Count(&userCount).Error; err != nil {
+		return o, err
+	}
+	role := int8(1)
+	if userCount == 0 {
+		role = 2
+	}
+
 	// 3. 生成业务主键与登录名
 	id, err := GenUserID(GenUserIDInput{})
 	if err != nil {
@@ -132,6 +142,7 @@ func Register(i RegisterInput) (o RegisterOutput, err error) {
 		Username: un.Username,
 		Email:    email,
 		Password: h.Hash,
+		Role:     role,
 	}
 	if err = db.DB.Create(user).Error; err != nil {
 		return o, err

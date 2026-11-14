@@ -4,6 +4,8 @@ import (
 	"errors"
 	"strings"
 
+	"server/core/db"
+	"server/model"
 	"server/service"
 
 	"github.com/gin-gonic/gin"
@@ -56,6 +58,49 @@ func AuthGuard() gin.HandlerFunc {
 		}
 
 		// 登录放行：把 userID、token 写入上下文供 handler 使用
+		c.Set("userID", s.Session.UserID)
+		c.Set("token", token)
+		c.Next()
+	}
+}
+
+// RoleGuard 管理员拦截中间件：**管理员（role=2）放行，其余阻止**。
+// 先做 AuthGuard 的登录校验（userID/token 写入上下文），再查用户角色：
+// - 未登录 → 401；已登录但非管理员 → 403；管理员 → 放行。
+// 用于用户管理、AI 设置等仅管理员可用的接口。
+func RoleGuard() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := TokenFromHeader(TokenFromHeaderInput{Authorization: c.GetHeader("Authorization")}).Token
+		if token == "" {
+			c.AbortWithStatusJSON(401, gin.H{"message": "未登录"})
+			return
+		}
+
+		s, err := service.GetSession(service.GetSessionInput{Token: token})
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.AbortWithStatusJSON(401, gin.H{"message": "登录已过期或会话无效"})
+				return
+			}
+			c.AbortWithStatusJSON(500, gin.H{"message": "服务器内部错误"})
+			return
+		}
+
+		// 查角色：须为管理员（role=2）
+		var u model.User
+		if err = db.DB.First(&u, "id = ?", s.Session.UserID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.AbortWithStatusJSON(401, gin.H{"message": "用户不存在"})
+				return
+			}
+			c.AbortWithStatusJSON(500, gin.H{"message": "服务器内部错误"})
+			return
+		}
+		if u.Role != 2 {
+			c.AbortWithStatusJSON(403, gin.H{"message": "需要管理员权限"})
+			return
+		}
+
 		c.Set("userID", s.Session.UserID)
 		c.Set("token", token)
 		c.Next()

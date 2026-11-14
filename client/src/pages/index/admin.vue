@@ -72,9 +72,11 @@
         align="justify"
         narrow-indicator
       >
-        <q-tab name="goods" label="商品管理" icon="inventory_2" />
-        <q-tab name="menus" label="分类管理" icon="category" />
+        <q-tab v-if="isAdmin" name="goods" label="商品管理" icon="inventory_2" />
+        <q-tab v-if="isAdmin" name="menus" label="分类管理" icon="category" />
         <q-tab name="print" label="设备管理" icon="print" />
+        <q-tab v-if="isAdmin" name="users" label="用户管理" icon="people" />
+        <q-tab v-if="isAdmin" name="ai" label="AI 设置" icon="smart_toy" />
       </q-tabs>
       <q-separator />
 
@@ -361,6 +363,180 @@
             </div>
           </div>
         </q-tab-panel>
+
+        <!-- ============ 用户管理 ============ -->
+        <q-tab-panel name="users" class="q-pa-none q-pt-sm">
+          <q-toolbar class="q-px-none">
+            <q-input
+              v-model="userKeyword"
+              dense
+              outlined
+              placeholder="搜索用户名 / 邮箱 / 姓名"
+              style="max-width: 260px"
+              clearable
+              @keyup.enter="loadUsers(1)"
+            >
+              <template #append>
+                <q-icon name="search" class="cursor-pointer" @click="loadUsers(1)" />
+              </template>
+            </q-input>
+            <q-btn class="q-ml-sm" flat dense icon="refresh" label="刷新" @click="loadUsers()" />
+            <q-space />
+            <span class="text-caption text-grey-6">共 {{ userTotal }} 位用户</span>
+          </q-toolbar>
+
+          <div v-if="usersLoading" class="text-grey-6 q-pa-md">加载中…</div>
+
+          <div v-else-if="users.length === 0" class="text-grey-6 q-pa-md">没有匹配的用户。</div>
+
+          <q-list v-else separator>
+            <q-item v-for="u in users" :key="u.id">
+              <q-item-section avatar>
+                <q-avatar color="primary" text-color="white" size="38px">
+                  {{ (u.name || u.username).charAt(0).toUpperCase() }}
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="text-weight-medium">
+                  {{ u.name || u.username }}
+                  <q-badge v-if="u.id === meId" color="orange" label="我" class="q-ml-xs" />
+                  <q-badge
+                    :color="u.role === 2 ? 'purple' : 'grey-5'"
+                    :label="u.role === 2 ? '管理员' : '普通用户'"
+                    class="q-ml-xs"
+                  />
+                </q-item-label>
+                <q-item-label caption>
+                  {{ u.username }} · {{ u.email }}
+                  <span v-if="u.last_login_at"> · 最近登录 {{ fmtTime(u.last_login_at) }}</span>
+                </q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <div class="row no-wrap q-gutter-xs items-center">
+                  <q-toggle
+                    :model-value="u.status === 1"
+                    :label="u.status === 1 ? '正常' : '禁用'"
+                    dense
+                    :color="u.status === 1 ? 'positive' : 'negative'"
+                    @update:model-value="(v: boolean) => toggleUserStatus(u, v)"
+                  />
+                  <q-btn
+                    dense
+                    flat
+                    :label="u.role === 2 ? '设为普通' : '设为管理员'"
+                    @click="toggleUserRole(u)"
+                  />
+                  <q-btn dense flat icon="key" aria-label="重置密码" @click="resetUserPwd(u)" />
+                  <q-btn
+                    dense
+                    flat
+                    icon="delete"
+                    color="negative"
+                    aria-label="删除用户"
+                    :disable="u.id === meId"
+                    @click="removeUser(u)"
+                  />
+                </div>
+              </q-item-section>
+            </q-item>
+          </q-list>
+
+          <!-- 分页 -->
+          <div v-if="userTotal > userPageSize" class="row justify-center q-gutter-sm q-mt-sm">
+            <q-btn
+              dense
+              flat
+              icon="chevron_left"
+              :disable="userPage <= 1"
+              @click="loadUsers(userPage - 1)"
+            />
+            <span class="text-caption self-center">
+              {{ userPage }} / {{ Math.ceil(userTotal / userPageSize) }}
+            </span>
+            <q-btn
+              dense
+              flat
+              icon="chevron_right"
+              :disable="userPage >= Math.ceil(userTotal / userPageSize)"
+              @click="loadUsers(userPage + 1)"
+            />
+          </div>
+        </q-tab-panel>
+
+        <!-- ============ AI 设置 ============ -->
+        <q-tab-panel name="ai" class="q-pa-none q-pt-sm">
+          <div class="column q-gutter-md" style="max-width: 640px">
+            <!-- 模型 API -->
+            <q-card flat bordered>
+              <q-card-section class="text-subtitle1">模型 API</q-card-section>
+              <q-card-section class="column q-gutter-sm q-pt-none">
+                <q-input
+                  v-model="aiForm.base_url"
+                  label="接口地址（OpenAI 兼容，不带 /chat/completions）"
+                  outlined
+                  dense
+                  placeholder="https://api.deepseek.com/v1"
+                />
+                <q-input
+                  v-model="aiForm.api_key"
+                  label="API Key"
+                  outlined
+                  dense
+                  type="password"
+                  clearable
+                  hint="请保密，不要泄露给他人"
+                />
+                <q-input
+                  v-model="aiForm.model"
+                  label="模型名"
+                  outlined
+                  dense
+                  placeholder="deepseek-chat"
+                />
+                <div class="row q-gutter-sm">
+                  <q-btn color="primary" label="保存" unelevated :loading="aiSaving" @click="saveAi" />
+                  <q-btn
+                    outline
+                    color="primary"
+                    label="测试连接"
+                    :loading="aiTesting"
+                    @click="testAi"
+                  />
+                </div>
+                <div
+                  v-if="aiTestResult"
+                  class="text-caption"
+                  :class="aiTestOk ? 'text-green-8' : 'text-negative'"
+                >
+                  {{ aiTestResult }}
+                </div>
+              </q-card-section>
+            </q-card>
+
+            <!-- 系统提示词 -->
+            <q-card flat bordered>
+              <q-card-section class="text-subtitle1">AI 商品匹配 · 系统提示词</q-card-section>
+              <q-card-section class="q-pt-none">
+                <q-input
+                  v-model="aiForm.system_prompt"
+                  type="textarea"
+                  outlined
+                  autogrow
+                  label="系统提示词"
+                  hint="匹配点单文字时发给大模型的指令；要求只输出 JSON 数组 [{&quot;id&quot;:&quot;商品id&quot;,&quot;qty&quot;:数量}]"
+                />
+                <q-btn
+                  class="q-mt-sm"
+                  color="primary"
+                  label="保存提示词"
+                  unelevated
+                  :loading="aiSaving"
+                  @click="saveAi"
+                />
+              </q-card-section>
+            </q-card>
+          </div>
+        </q-tab-panel>
       </q-tab-panels>
 
       <!-- ============ 添加 / 编辑打印机 ============ -->
@@ -536,7 +712,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from "vue";
+import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useQuasar } from "quasar";
 import {
   bleInit,
@@ -642,6 +818,7 @@ async function submitAuth() {
     });
     setToken(data.token);
     password.value = "";
+    await loadMe();
     await loadMenus();
     await loadGoods();
   } catch (e) {
@@ -661,6 +838,9 @@ async function logout() {
   localStorage.removeItem(TOKEN_KEY);
   menus.value = [];
   goodsList.value = [];
+  isAdmin.value = false;
+  meId.value = "";
+  tab.value = "goods";
 }
 
 // ================= 分类 =================
@@ -1215,10 +1395,227 @@ async function stopScan() {
   if (fn) await fn().catch(() => undefined);
 }
 
+// ================= 当前用户（角色决定是否展示管理页签） =================
+interface MeInfo {
+  id: string;
+  username: string;
+  name: string;
+  role: number; // 1 普通 2 管理员
+  status: number;
+}
+
+const meId = ref("");
+const isAdmin = ref(false);
+
+async function loadMe() {
+  try {
+    const d: MeInfo = await api("/api/user/me");
+    meId.value = d.id;
+    isAdmin.value = d.role === 2;
+  } catch {
+    isAdmin.value = false;
+  }
+  // 非管理员看不到商品/分类/用户/AI 页签，若正停在这些页签则落到「设备管理」
+  if (!isAdmin.value && ["goods", "menus", "users", "ai"].includes(tab.value)) {
+    tab.value = "print";
+  }
+}
+
+// ================= 用户管理 =================
+interface UserItem {
+  id: string;
+  username: string;
+  email: string;
+  name: string;
+  status: number; // 1 正常 0 禁用
+  role: number; // 1 普通 2 管理员
+  last_login_at?: string;
+}
+
+const users = ref<UserItem[]>([]);
+const usersLoading = ref(false);
+const userKeyword = ref("");
+const userPage = ref(1);
+const userPageSize = 20;
+const userTotal = ref(0);
+
+async function loadUsers(page = userPage.value) {
+  usersLoading.value = true;
+  try {
+    const params = new URLSearchParams({ page: String(page), page_size: String(userPageSize) });
+    const kw = userKeyword.value.trim();
+    if (kw) params.set("keyword", kw);
+    const d = await api(`/api/user/list?${params.toString()}`);
+    users.value = Array.isArray(d.list) ? d.list : [];
+    userTotal.value = d.total ?? 0;
+    userPage.value = d.page ?? page;
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+  } finally {
+    usersLoading.value = false;
+  }
+}
+
+// 角色/状态更新：全量回传 {id, role, status}
+async function patchUser(u: UserItem, patch: Partial<Pick<UserItem, "role" | "status">>) {
+  const body = { id: u.id, role: u.role, status: u.status, ...patch };
+  await api("/api/user/update", { method: "POST", body });
+  Object.assign(u, patch);
+}
+
+async function toggleUserStatus(u: UserItem, on: boolean) {
+  try {
+    await patchUser(u, { status: on ? 1 : 0 });
+    $q.notify({ message: on ? "已启用" : "已禁用", color: "positive" });
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+    await loadUsers();
+  }
+}
+
+async function toggleUserRole(u: UserItem) {
+  try {
+    await patchUser(u, { role: u.role === 2 ? 1 : 2 });
+    $q.notify({ message: "角色已更新", color: "positive" });
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+    await loadUsers();
+  }
+}
+
+function resetUserPwd(u: UserItem) {
+  $q.dialog({
+    title: "重置密码",
+    message: `为「${u.username}」设置新密码（至少 8 位）`,
+    prompt: { model: "", type: "password" },
+    cancel: true
+  }).onOk(async (pwd: string) => {
+    if (!pwd || pwd.length < 8) {
+      $q.notify({ message: "密码长度至少 8 位", color: "negative" });
+      return;
+    }
+    try {
+      await api("/api/user/reset-password", { method: "POST", body: { id: u.id, password: pwd } });
+      $q.notify({ message: "密码已重置，该用户的旧登录已失效", color: "positive" });
+    } catch (e) {
+      $q.notify({ message: describeError(e), color: "negative" });
+    }
+  });
+}
+
+function removeUser(u: UserItem) {
+  $q.dialog({
+    title: "删除用户",
+    message: `确定删除「${u.username}」？其登录会话会立即失效。`,
+    cancel: true
+  }).onOk(async () => {
+    try {
+      await api("/api/user/delete", { method: "POST", body: { id: u.id } });
+      $q.notify({ message: "已删除", color: "positive" });
+      await loadUsers();
+    } catch (e) {
+      $q.notify({ message: describeError(e), color: "negative" });
+    }
+  });
+}
+
+function fmtTime(v: string) {
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getMonth() + 1}-${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// ================= AI 设置 =================
+const aiForm = reactive({
+  base_url: "",
+  api_key: "",
+  model: "",
+  system_prompt: ""
+});
+const aiSaving = ref(false);
+const aiTesting = ref(false);
+const aiTestResult = ref("");
+const aiTestOk = ref(false);
+
+async function loadAi() {
+  try {
+    const d = await api("/api/ai/settings");
+    aiForm.base_url = d.base_url ?? "";
+    aiForm.api_key = d.api_key ?? "";
+    aiForm.model = d.model ?? "";
+    aiForm.system_prompt = d.system_prompt ?? "";
+    aiTestResult.value = "";
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+  }
+}
+
+async function saveAi() {
+  if (!aiForm.base_url.trim() || !aiForm.model.trim()) {
+    $q.notify({ message: "接口地址和模型名不能为空", color: "negative" });
+    return;
+  }
+  if (!aiForm.api_key.trim()) {
+    $q.notify({ message: "API Key 不能为空", color: "negative" });
+    return;
+  }
+  if (!aiForm.system_prompt.trim()) {
+    $q.notify({ message: "系统提示词不能为空", color: "negative" });
+    return;
+  }
+  aiSaving.value = true;
+  try {
+    await api("/api/ai/save", {
+      method: "POST",
+      body: {
+        base_url: aiForm.base_url.trim(),
+        api_key: aiForm.api_key.trim(),
+        model: aiForm.model.trim(),
+        system_prompt: aiForm.system_prompt.trim()
+      }
+    });
+    $q.notify({ message: "已保存，立即生效", color: "positive" });
+  } catch (e) {
+    $q.notify({ message: describeError(e), color: "negative" });
+  } finally {
+    aiSaving.value = false;
+  }
+}
+
+async function testAi() {
+  aiTesting.value = true;
+  aiTestResult.value = "";
+  try {
+    const d = await api("/api/ai/test", {
+      method: "POST",
+      body: {
+        base_url: aiForm.base_url.trim(),
+        api_key: aiForm.api_key.trim(),
+        model: aiForm.model.trim()
+      }
+    });
+    aiTestOk.value = true;
+    aiTestResult.value = `连通成功，模型回复：${d.reply}`;
+  } catch (e) {
+    aiTestOk.value = false;
+    aiTestResult.value = describeError(e);
+  } finally {
+    aiTesting.value = false;
+  }
+}
+
+// 切到用户管理 / AI 设置页签时懒加载数据
+watch(tab, (v) => {
+  if (v === "users") void loadUsers(1);
+  else if (v === "ai") void loadAi();
+});
+
 // ================= 初始化 =================
 onMounted(async () => {
   if (!token.value) return;
   try {
+    await loadMe();
     await loadMenus();
     await loadGoods();
   } catch (e) {
