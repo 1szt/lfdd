@@ -162,26 +162,27 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 
 	total := 0
 	for _, it := range items {
-		if it.Edited == 1 { // 改过价的保留改后价
-			total += it.Price * it.Qty
-			continue
-		}
 		g, ok := byID[it.GoodsID]
 		if !ok {
 			return o, fmt.Errorf("「%s」已删除，无法结单", it.Name)
 		}
+		if it.Edited == 1 { // 改过价的按改后价计合计
+			total += it.Price * it.Qty
+			continue
+		}
 		total += g.Price * it.Qty
 	}
 
-	// 3. 事务：回填未改价明细的价 → 合计与状态一次更新
+	// 3. 事务：结单锁定——原价写商品当时价，改价行保留改后价，未改价行回填商品价
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
 		for _, it := range items {
-			if it.Edited == 1 {
-				continue // 改价行的价格已锁定，不覆盖
-			}
 			g := byID[it.GoodsID]
+			updates := map[string]any{"orig_price": g.Price} // 原价 = 结单时商品价
+			if it.Edited != 1 {                              // 未改价行：price 同步锁定为商品价
+				updates["price"] = g.Price
+			}
 			if e := tx.Model(&model.OrderItem{}).Where("id = ?", it.ID).
-				Update("price", g.Price).Error; e != nil {
+				Updates(updates).Error; e != nil {
 				return e
 			}
 		}
@@ -230,16 +231,10 @@ func ChangePrice(i ChangePriceInput) (o ChangePriceOutput, err error) {
 		return o, errors.New("已结单的订单不能改价")
 	}
 
-	// 原价 = 商品表当前价（即「没改的价格」），用于改价前后对比展示
-	orig := 0
-	var g model.Goods
-	if e := db.DB.First(&g, i.GoodsID).Error; e == nil {
-		orig = g.Price
-	}
-
+	// 改价只记改后价：原价（商品当前价）在未结单时按商品表现时展示、结单时才写入 orig_price
 	res := db.DB.Model(&model.OrderItem{}).
 		Where("order_id = ? AND goods_id = ?", ord.ID, i.GoodsID).
-		Updates(map[string]any{"price": i.Price, "edited": 1, "orig_price": orig})
+		Updates(map[string]any{"price": i.Price, "edited": 1})
 	if res.Error != nil {
 		return o, res.Error
 	}
@@ -454,6 +449,10 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 			for n, v := range itemsByOrder[id] {
 				if v.Edited == 1 {
 					total += v.Price * v.Qty // 改过价：用改后价
+					// 未结单：原价按商品表现时价展示（结单时才写入 orig_price）
+					if p, ok := priceByGoods[v.GoodsID]; ok {
+						itemsByOrder[id][n].OrigPrice = p
+					}
 					continue
 				}
 				if p, ok := priceByGoods[v.GoodsID]; ok {

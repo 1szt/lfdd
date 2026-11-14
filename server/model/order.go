@@ -49,7 +49,7 @@ type OrderItem struct {
 	// 是否改过价（0 未改、1 已改）：改价标记，结单时保留改后价
 	Edited int8 `json:"edited" gorm:"not null;default:0"`
 
-	// 改价前的原价，单位：分；未改价为 0（仅展示对比用，结单不改写）
+	// 改价前的原价，单位：分；结单时写入（= 结单时商品价），未结单为 0（展示用商品表现时价）
 	OrigPrice int `json:"orig_price" gorm:"not null;default:0"`
 
 	// 规格快照
