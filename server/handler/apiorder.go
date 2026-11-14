@@ -53,10 +53,10 @@ func (h *ApiOrderHandler) Finish(c *gin.Context) {
 	c.JSON(200, out)
 }
 
-// Update 编辑未结单订单（整体替换单品数量/增删行，库存按差额调整）
-// body: {"id":"1","items":[{"id":"101","qty":2}]} → {"count":2}
-func (h *ApiOrderHandler) Update(c *gin.Context) {
-	var req service.UpdateOrderInput
+// Void 废单：作废未结单订单（回补库存并删除）
+// body: {"id":"1"} → 200
+func (h *ApiOrderHandler) Void(c *gin.Context) {
+	var req service.VoidOrderInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
 			"message": "请求参数错误",
@@ -64,15 +64,14 @@ func (h *ApiOrderHandler) Update(c *gin.Context) {
 		return
 	}
 
-	out, err := service.UpdateOrder(req)
-	if err != nil {
+	if _, err := service.VoidOrder(req); err != nil {
 		c.JSON(400, gin.H{
 			"message": err.Error(),
 		})
 		return
 	}
 
-	c.JSON(200, out)
+	c.JSON(200, gin.H{})
 }
 
 // Delete 删除订单（仅已结单）

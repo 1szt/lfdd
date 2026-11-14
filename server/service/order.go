@@ -197,24 +197,15 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 	return o, nil
 }
 
-// ------------------------ UpdateOrder 编辑订单 ------------------------
+// ------------------------ VoidOrder 废单 ------------------------
 
-type UpdateOrderItemInput struct {
-	ID  int64 `json:"id,string"` // 商品 ID
-	Qty int   `json:"qty"`       // 新数量
+type VoidOrderInput struct {
+	ID int64 `json:"id,string"` // 订单 ID
 }
-type UpdateOrderInput struct {
-	ID    int64                 `json:"id,string"` // 订单 ID
-	Items []UpdateOrderItemInput `json:"items"`     // 编辑后的完整明细（整体替换）
-}
-type UpdateOrderOutput struct {
-	Count int `json:"count"` // 编辑后的总件数
-}
+type VoidOrderOutput struct{}
 
-// UpdateOrder 编辑未结单订单：整体替换单品数量/增删行，按差额调整库存，重算件数。
-// 只允许 status=0（价格未锁定）；已结单不可编辑。明细价格保持 0，仍待结单锁定。
-func UpdateOrder(i UpdateOrderInput) (o UpdateOrderOutput, err error) {
-	// 1. 查订单（仅待结单可编辑）
+// VoidOrder 废单：作废未结单订单——回补库存后删除订单与明细。已结单的不可废单。
+func VoidOrder(i VoidOrderInput) (o VoidOrderOutput, err error) {
 	var ord model.Order
 	if err = db.DB.First(&ord, i.ID).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -223,123 +214,48 @@ func UpdateOrder(i UpdateOrderInput) (o UpdateOrderOutput, err error) {
 		return o, err
 	}
 	if ord.Status != 0 {
-		return o, errors.New("已结单的订单不能编辑")
+		return o, errors.New("已结单的订单不能废单")
 	}
 
-	// 2. 合并新明细并校验
-	qtyByID := map[int64]int{}
-	ids := []int64{}
-	for _, it := range i.Items {
-		if it.ID <= 0 || it.Qty < 0 {
-			return o, errors.New("订单数据异常")
-		}
-		if it.Qty == 0 {
-			continue // 0 = 该行被删除
-		}
-		if _, seen := qtyByID[it.ID]; !seen {
-			ids = append(ids, it.ID)
-		}
-		qtyByID[it.ID] += it.Qty
-		if qtyByID[it.ID] > matchMaxQty {
-			return o, fmt.Errorf("单商品数量不能超过 %d", matchMaxQty)
-		}
-	}
-	if len(ids) == 0 {
-		return o, errors.New("订单至少要有一件商品")
-	}
-
-	// 3. 查旧明细（算库存差额）与新商品（校验上架/库存）
-	var oldItems []model.OrderItem
-	if err = db.DB.Where("order_id = ?", ord.ID).Find(&oldItems).Error; err != nil {
+	var items []model.OrderItem
+	if err = db.DB.Where("order_id = ?", ord.ID).Find(&items).Error; err != nil {
 		return o, err
 	}
-	oldQty := map[int64]int{}
-	for _, it := range oldItems {
-		oldQty[it.GoodsID] += it.Qty
+	ids := make([]int64, 0, len(items))
+	for _, it := range items {
+		ids = append(ids, it.GoodsID)
+	}
+	qtyByGoods := map[int64]int{}
+	for _, it := range items {
+		qtyByGoods[it.GoodsID] += it.Qty
 	}
 
-	var goods []model.Goods
-	if err = db.DB.Where("id IN ? AND status = ?", ids, 1).Find(&goods).Error; err != nil {
-		return o, err
-	}
-	byID := make(map[int64]model.Goods, len(goods))
-	for _, g := range goods {
-		byID[g.ID] = g
-	}
-	for _, id := range ids {
-		g, ok := byID[id]
-		if !ok {
-			return o, errors.New("商品已下架或不存在")
-		}
-		diff := qtyByID[id] - oldQty[id]
-		if diff > 0 && g.Stock > 0 && diff > g.Stock {
-			return o, fmt.Errorf("「%s」库存不足（剩 %d）", g.Name, g.Stock)
+	var gs []model.Goods
+	if len(ids) > 0 {
+		if err = db.DB.Where("id IN ?", ids).Find(&gs).Error; err != nil {
+			return o, err
 		}
 	}
 
-	// 4. 事务：按差额调库存 → 整体替换明细 → 重算件数
-	count := 0
-	for _, qty := range qtyByID {
-		count += qty
-	}
-	// 差额遍历新旧并集：被删掉的旧行也要回补库存
-	union := make(map[int64]struct{}, len(ids)+len(oldQty))
-	for _, id := range ids {
-		union[id] = struct{}{}
-	}
-	for id := range oldQty {
-		union[id] = struct{}{}
-	}
 	err = db.DB.Transaction(func(tx *gorm.DB) error {
-		for id := range union {
-			diff := qtyByID[id] - oldQty[id]
-			if diff == 0 {
+		// 回补库存（商品已删则无法回补；stock=-1 不限库存）
+		for _, g := range gs {
+			if g.Stock < 0 {
 				continue
 			}
-			g, ok := byID[id]
-			if !ok || g.Stock < 0 {
-				continue // 商品已删（无法回补）或不限库存
-			}
-			if diff > 0 {
-				res := tx.Model(&model.Goods{}).
-					Where("id = ? AND stock >= ?", id, diff).
-					Update("stock", gorm.Expr("stock - ?", diff))
-				if res.Error != nil {
-					return res.Error
-				}
-				if res.RowsAffected == 0 {
-					return fmt.Errorf("「%s」库存不足", g.Name)
-				}
-			} else {
-				if e := tx.Model(&model.Goods{}).Where("id = ?", id).
-					Update("stock", gorm.Expr("stock - ?", diff)).Error; e != nil { // diff 为负，减负数 = 回补
-					return e
-				}
+			if e := tx.Model(&model.Goods{}).Where("id = ?", g.ID).
+				Update("stock", gorm.Expr("stock + ?", qtyByGoods[g.ID])).Error; e != nil {
+				return e
 			}
 		}
-		// 商品被删而旧行移除的库存无法回补（商品已不存在），忽略
-
 		if e := tx.Where("order_id = ?", ord.ID).Delete(&model.OrderItem{}).Error; e != nil {
 			return e
 		}
-		items := make([]model.OrderItem, 0, len(ids))
-		for _, id := range ids {
-			g, qty := byID[id], qtyByID[id]
-			items = append(items, model.OrderItem{
-				OrderID: ord.ID, GoodsID: g.ID, Name: g.Name,
-				Spec: g.Spec, Qty: qty, Image: g.Image, // Price 留 0，结单时回填
-			})
-		}
-		if e := tx.Create(&items).Error; e != nil {
-			return e
-		}
-		return tx.Model(&model.Order{}).Where("id = ?", ord.ID).Update("count", count).Error
+		return tx.Delete(&model.Order{}, ord.ID).Error
 	})
 	if err != nil {
 		return o, err
 	}
-
-	o.Count = count
 	return o, nil
 }
 
