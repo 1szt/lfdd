@@ -46,6 +46,15 @@
             @click="finishOrder(o)"
           />
           <q-btn
+            v-if="o.status === 0"
+            color="teal"
+            icon="edit"
+            label="编辑"
+            unelevated
+            size="sm"
+            @click="openEdit(o)"
+          />
+          <q-btn
             color="primary"
             icon="print"
             label="打印"
@@ -161,6 +170,62 @@
 
         <q-card-actions align="right">
           <q-btn flat label="关闭" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- 编辑订单对话框（未结单：改数量 / 删行，保存时后端按差额调库存） -->
+    <q-dialog v-model="editDlg">
+      <q-card class="print-card">
+        <q-card-section class="row items-center justify-between">
+          <span class="text-body2 text-weight-medium">编辑订单</span>
+          <q-icon name="edit" color="teal" />
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <div class="text-caption text-grey-7">订单 {{ editOrder?.order_no }}</div>
+
+          <div v-for="(it, idx) in editItems" :key="it.goods_id" class="row items-center q-gutter-sm q-mt-sm">
+            <div class="col">
+              <div class="text-caption ellipsis">{{ it.name }}</div>
+              <div v-if="it.spec" class="text-caption text-grey-6 ellipsis">{{ it.spec }}</div>
+            </div>
+            <q-input
+              v-model="it.qty"
+              type="number"
+              dense
+              outlined
+              class="edit-qty"
+              aria-label="修改数量"
+              @change="onEditQty(idx)"
+            />
+            <q-btn
+              flat
+              dense
+              round
+              color="negative"
+              icon="delete"
+              size="sm"
+              aria-label="移除该商品"
+              @click="editItems.splice(idx, 1)"
+            />
+          </div>
+
+          <div v-if="editItems.length === 0" class="text-caption text-grey-6 q-mt-sm">
+            没有商品了，至少保留一件
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="取消" v-close-popup />
+          <q-btn
+            color="teal"
+            label="保存"
+            unelevated
+            :disable="editItems.length === 0"
+            :loading="savingEdit"
+            @click="saveEdit"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -321,6 +386,68 @@ async function deleteOrder(o: Order) {
   }
 }
 
+// ================= 编辑订单（未结单） =================
+interface EditItem {
+  goods_id: string;
+  name: string;
+  spec: string;
+  qty: number;
+}
+const editDlg = ref(false);
+const editOrder = ref<Order | null>(null);
+const editItems = ref<EditItem[]>([]);
+const savingEdit = ref(false);
+
+function openEdit(o: Order) {
+  editOrder.value = o;
+  editItems.value = o.items.map((it) => ({
+    goods_id: it.goods_id,
+    name: it.name,
+    spec: it.spec,
+    qty: it.qty
+  }));
+  editDlg.value = true;
+}
+
+// 数量输入：0/非法 → 移除该行
+function onEditQty(idx: number) {
+  const n = Math.floor(Number(editItems.value[idx]?.qty));
+  if (!Number.isFinite(n) || n <= 0) {
+    editItems.value.splice(idx, 1);
+  } else {
+    editItems.value[idx]!.qty = n;
+  }
+}
+
+// 保存：整体提交新明细，后端按差额调库存并重算件数
+async function saveEdit() {
+  if (!editOrder.value || savingEdit.value) return;
+  const items = editItems.value
+    .map((it) => ({ id: it.goods_id, qty: Math.floor(Number(it.qty)) }))
+    .filter((it) => Number.isFinite(it.qty) && it.qty > 0);
+  if (items.length === 0) {
+    $q.notify({ message: "至少保留一件商品", color: "orange" });
+    return;
+  }
+  savingEdit.value = true;
+  try {
+    const res = await fetch("/api/order/update", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: editOrder.value.id, items })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `保存失败（${res.status}）`);
+    $q.notify({ message: `已保存，共 ${data.count} 件`, color: "positive" });
+    editDlg.value = false;
+    await loadOrders(true);
+  } catch (e) {
+    $q.notify({ message: describeErrorLocal(e), color: "negative" });
+  } finally {
+    savingEdit.value = false;
+  }
+}
+
 // ================= 打印小票 =================
 const printDlg = ref(false);
 const printOrder = ref<Order | null>(null);
@@ -477,5 +604,15 @@ onMounted(() => {
 .print-card {
   min-width: 340px;
   max-width: 90vw;
+}
+
+/* 编辑对话框数量输入 */
+.edit-qty {
+  width: 76px;
+
+  :deep(input) {
+    text-align: center;
+    font-weight: 700;
+  }
 }
 </style>
