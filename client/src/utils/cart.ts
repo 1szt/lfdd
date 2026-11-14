@@ -8,6 +8,7 @@ export interface CartLine {
   stock: number; // -1 不限，0 售罄
   image: string; // 哈希或完整 URL
   spec: string;
+  menu_id?: string; // 所属分类（侧边栏角标统计用；旧本地数据可能没有）
   qty: number;
 }
 
@@ -50,9 +51,14 @@ export function lineQty(id: string): number {
   return cart.value.find((l) => l.id === id)?.qty ?? 0;
 }
 
+// 某分类在购物车里的件数（侧边栏右上角角标）
+export function menuQty(menuId: string): number {
+  return cart.value.reduce((s, l) => (l.menu_id === menuId ? s + l.qty : s), 0);
+}
+
 // 增减数量：delta=1 加，-1 减；受库存限制（stock=-1 不限），减到 0 自动移出行
 export function changeQty(
-  item: { id: string; name: string; price: number; stock: number; image?: string; spec?: string },
+  item: { id: string; name: string; price: number; stock: number; image?: string; spec?: string; menu_id?: string },
   delta: number
 ) {
   const idx = cart.value.findIndex((l) => l.id === item.id);
@@ -62,7 +68,7 @@ export function changeQty(
       if (item.stock > 0 && line.qty >= item.stock) return; // 超库存忽略
       line.qty += 1;
     } else {
-      cart.value.push({ ...item, image: item.image ?? "", spec: item.spec ?? "", qty: 1 });
+      cart.value.push({ ...item, image: item.image ?? "", spec: item.spec ?? "", menu_id: item.menu_id ?? "", qty: 1 });
     }
   } else if (idx >= 0) {
     const line = cart.value[idx]!;
@@ -83,7 +89,7 @@ export function removeLine(id: string) {
 
 // 直接设置数量（数字输入框用）：0/非法 → 移除行，超出库存封顶到库存（stock=-1 不限）
 export function setQty(
-  item: { id: string; name: string; price: number; stock: number; image?: string; spec?: string },
+  item: { id: string; name: string; price: number; stock: number; image?: string; spec?: string; menu_id?: string },
   qty: number
 ) {
   const idx = cart.value.findIndex((l) => l.id === item.id);
@@ -96,7 +102,7 @@ export function setQty(
   if (idx >= 0) {
     cart.value[idx]!.qty = capped;
   } else {
-    cart.value.push({ ...item, image: item.image ?? "", spec: item.spec ?? "", qty: capped });
+    cart.value.push({ ...item, image: item.image ?? "", spec: item.spec ?? "", menu_id: item.menu_id ?? "", qty: capped });
   }
 }
 

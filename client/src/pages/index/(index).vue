@@ -9,6 +9,7 @@
           @click="selectMenu('0')"
         >
           全部
+          <q-badge v-if="cartCount > 0" floating color="red" :label="cartCount" />
         </div>
         <div
           v-for="m in menus"
@@ -18,6 +19,7 @@
           @click="selectMenu(m.id)"
         >
           {{ m.name }}
+          <q-badge v-if="menuQty(m.id) > 0" floating color="red" :label="menuQty(m.id)" />
         </div>
         <div v-if="menus.length === 0" class="text-caption text-grey-6 q-pa-sm text-center">
           暂无分类
@@ -169,6 +171,7 @@ import {
   fmtPrice,
   imgSrc,
   lineQty,
+  menuQty,
   setQty
 } from "../../utils/cart";
 // 购物车数据在 utils/cart.ts（模块级共享，购物车页同用一份）
