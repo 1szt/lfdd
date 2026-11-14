@@ -221,13 +221,25 @@ export async function sppDiscover(onDevice?: (d: SppDevice) => void): Promise<Sp
   }
 }
 
-// 经典蓝牙打印：连接 → 写入 → 断开，返回设备名
+// 经典蓝牙打印：连接 → 写入 → 等排空 → 断开，返回设备名
 export async function sppPrint(device: SppDevice, payload: number[]): Promise<string> {
   await ensureBtPermission(); // connect 同样需要 BLUETOOTH_CONNECT，缺失会闪退
   const api = sppApi();
   await sppCall<void>((ok, fail) => api.connect(device.address, ok, fail));
   try {
-    await sppCall<void>((ok, fail) => api.write(new Uint8Array(payload), ok, fail));
+    // 连接回调刚返回时底层通道未必就绪，稍等再写，减少首包丢失
+    await new Promise((r) => setTimeout(r, 150));
+    // 插件的 write 是「入队即 success」（BluetoothSerial.java:128-132），此时数据
+    // 还在队列里没发到打印机，立刻 disconnect 会把 socket 关掉 → 提示已发送但不打印。
+    // 分块写入 + 按包大小等排空（SPP 速率远高于此，够用），再断开。
+    const chunkSize = 512;
+    const drainMs = Math.min(1000, 300 + Math.ceil(payload.length / 8));
+    for (let off = 0; off < payload.length; off += chunkSize) {
+      if (off > 0) await new Promise((r) => setTimeout(r, 100));
+      const slice = new Uint8Array(payload.slice(off, off + chunkSize));
+      await sppCall<void>((ok, fail) => api.write(slice.buffer, ok, fail));
+    }
+    await new Promise((r) => setTimeout(r, drainMs));
     return device.name || "未知设备";
   } finally {
     // 尽力断开，失败忽略
