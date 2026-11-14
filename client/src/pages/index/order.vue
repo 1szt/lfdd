@@ -208,7 +208,6 @@ const router = useRouter();
 
 interface OrderItem {
   goods_id: string;
-  menu_id: string; // 所属分类（复制到购物车后侧边栏角标统计）
   name: string;
   price: number; // 单价，分
   spec: string;
@@ -344,12 +343,36 @@ async function deleteOrder(o: Order) {
 
 // ================= 复制到购物车 / 废单 =================
 
+// 商品 ID → 分类 ID 映射（现有商品接口反推，供复制后侧边栏角标统计）。
+// 分页拉全量（每页 100，上限 20 页），已下架/已删商品查不到则不计角标。
+async function fetchMenuMap(): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  try {
+    let got = 0;
+    let total = Infinity;
+    for (let page = 1; page <= 20 && got < total; page++) {
+      const res = await fetch(`/api/goods/page?menu_id=0&page=${page}&page_size=100`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) break;
+      const list: { id: string; menu_id: string }[] = Array.isArray(data.list) ? data.list : [];
+      for (const g of list) map[g.id] = g.menu_id;
+      got += list.length;
+      total = typeof data.total === "number" ? data.total : got;
+      if (list.length === 0) break;
+    }
+  } catch {
+    // 拿不到映射就只影响角标，不阻断复制
+  }
+  return map;
+}
+
 // 复制订单明细进购物车，去购物车改完重新提交订单
-function copyToCart(o: Order) {
+async function copyToCart(o: Order) {
+  const menuMap = await fetchMenuMap();
   copyOrderToCart(
     o.items.map((it) => ({
       goods_id: it.goods_id,
-      menu_id: it.menu_id,
+      menu_id: menuMap[it.goods_id] ?? "",
       name: it.name,
       price: it.price,
       spec: it.spec,
