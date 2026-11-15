@@ -262,15 +262,16 @@ func CreateUser(i CreateUserInput) (o CreateUserOutput, err error) {
 
 type UpdateUserInfoInput struct {
 	ID       int64  `json:"id,string"`
-	Username string `json:"username"`        // 修改后的用户名
-	Password string `json:"password"`        // 新密码，留空则不修改
+	Username string `json:"username"` // 修改后的用户名
+	Email    string `json:"email"`    // 修改后的邮箱，留空则不修改
+	Password string `json:"password"` // 新密码，留空则不修改
 	// 当前操作人 token：改的是自己时保留该会话
 	KeepToken string `json:"-"`
 }
 type UpdateUserInfoOutput struct {
 }
 
-// UpdateUserInfo 修改用户名/密码（改密码后旧会话作废，保留当前操作人会话）
+// UpdateUserInfo 修改用户名/邮箱/密码（改密码后旧会话作废，保留当前操作人会话）
 func UpdateUserInfo(i UpdateUserInfoInput) (o UpdateUserInfoOutput, err error) {
 	if i.ID == 0 {
 		return o, errors.New("缺少用户 ID")
@@ -299,6 +300,21 @@ func UpdateUserInfo(i UpdateUserInfoInput) (o UpdateUserInfoOutput, err error) {
 			return o, errors.New("用户名已存在")
 		}
 		updates["username"] = username
+	}
+
+	if email := strings.ToLower(strings.TrimSpace(i.Email)); email != "" {
+		if !strings.Contains(email, "@") {
+			return o, errors.New("邮箱格式不正确")
+		}
+		var count int64
+		if err = db.DB.Model(&model.User{}).
+			Where("email = ? AND id <> ?", email, i.ID).Count(&count).Error; err != nil {
+			return o, err
+		}
+		if count > 0 {
+			return o, errors.New("邮箱已存在")
+		}
+		updates["email"] = email
 	}
 
 	if i.Password != "" {

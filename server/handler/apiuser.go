@@ -149,7 +149,7 @@ func (h *ApiUserHandler) Create(c *gin.Context) {
 	c.JSON(200, out)
 }
 
-// UpdateInfo 修改用户名/密码（body: id、username、password 留空不改）
+// UpdateInfo 修改用户名/邮箱/密码（body: id、username、email、password 留空不改）
 func (h *ApiUserHandler) UpdateInfo(c *gin.Context) {
 	var req service.UpdateUserInfoInput
 	if err := c.ShouldBindJSON(&req); err != nil {

@@ -639,20 +639,25 @@
             </q-card>
           </q-dialog>
 
-          <!-- ============ 编辑用户（用户名 / 密码） ============ -->
+          <!-- ============ 编辑用户（用户名 / 邮箱 / 密码） ============ -->
           <q-dialog v-model="userEditDlg">
             <q-card style="width: 420px; max-width: 95vw">
               <q-card-section class="text-h6">编辑用户</q-card-section>
               <q-card-section class="column q-gutter-sm q-pt-none">
-                <div class="text-caption text-grey-7"
-                  >邮箱：{{ editForm.email }}</div
-                >
                 <q-input
                   v-model="editForm.username"
                   outlined
                   dense
                   label="用户名"
                   autofocus
+                />
+                <q-input
+                  v-model="editForm.email"
+                  outlined
+                  dense
+                  type="email"
+                  label="邮箱"
+                  hint="邮箱也可用于登录"
                 />
                 <q-input
                   v-model="editForm.password"
@@ -1953,7 +1958,7 @@ async function saveAddUser() {
   }
 }
 
-// ---- 编辑用户（修改用户名 / 密码） ----
+// ---- 编辑用户（修改用户名 / 邮箱 / 密码） ----
 const userEditDlg = ref(false);
 const userEditBusy = ref(false);
 const editForm = reactive({ id: "", username: "", email: "", password: "" });
@@ -1972,11 +1977,16 @@ async function saveEditUser() {
     $q.notify({ message: "用户名不能为空", color: "negative" });
     return;
   }
+  const email = editForm.email.trim();
+  if (!email || !email.includes("@")) {
+    $q.notify({ message: "请输入正确的邮箱", color: "negative" });
+    return;
+  }
   if (editForm.password && editForm.password.length < 8) {
     $q.notify({ message: "密码长度至少 8 位", color: "negative" });
     return;
   }
-  const body: Record<string, unknown> = { id: editForm.id, username };
+  const body: Record<string, unknown> = { id: editForm.id, username, email };
   if (editForm.password) body.password = editForm.password;
 
   userEditBusy.value = true;
@@ -1988,6 +1998,7 @@ async function saveEditUser() {
     });
     userEditDlg.value = false;
     await loadUsers();
+    await loadMe(); // 改的是自己时同步刷新页面上显示的用户名/邮箱
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
   } finally {
