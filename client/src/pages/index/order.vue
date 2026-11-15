@@ -12,16 +12,33 @@
         <q-tab name="0" label="未结单" />
         <q-tab v-if="!isGuest" name="1" label="已结单" />
       </q-tabs>
-      <q-btn flat dense size="sm" color="primary" icon="refresh" label="刷新" @click="loadOrders(true)" />
+      <q-btn
+        flat
+        dense
+        size="sm"
+        color="primary"
+        icon="refresh"
+        label="刷新"
+        @click="loadOrders(true)"
+      />
     </div>
 
     <!-- 空态 -->
-    <div v-if="orders.length === 0 && !loading" class="column items-center justify-center empty-box">
+    <div
+      v-if="orders.length === 0 && !loading"
+      class="column items-center justify-center empty-box"
+    >
       <q-icon name="receipt_long" size="64px" color="grey-4" />
       <div class="text-body1 text-grey-7 q-mt-md">
         {{ statusTab === "0" ? "没有未结单的订单" : "没有已结单的订单" }}
       </div>
-      <q-btn v-if="statusTab === '0'" class="q-mt-md" color="primary" label="去点单" to="/" />
+      <q-btn
+        v-if="statusTab === '0'"
+        class="q-mt-md"
+        color="primary"
+        label="去点单"
+        to="/"
+      />
     </div>
 
     <div v-else class="order-list">
@@ -95,21 +112,30 @@
         </div>
 
         <div class="order-items q-mt-sm">
-          <div v-for="(it, idx) in o.items" :key="idx" class="order-item row items-center">
+          <div
+            v-for="(it, idx) in o.items"
+            :key="idx"
+            class="order-item row items-center"
+          >
             <div class="item-thumb">
               <img v-if="it.image" :src="imgSrc(it.image)" :alt="it.name" />
               <q-icon v-else name="shopping_bag" size="20px" color="grey-5" />
             </div>
             <div class="col">
               <div class="text-caption ellipsis">{{ it.name }}</div>
-              <div v-if="it.spec" class="text-caption text-grey-6 ellipsis">{{ it.spec }}</div>
+              <div v-if="it.spec" class="text-caption text-grey-6 ellipsis">{{
+                it.spec
+              }}</div>
             </div>
             <div class="text-caption text-grey-7">x{{ it.qty }}</div>
             <div class="column items-end" style="min-width: 96px">
               <!-- 单价：改过价显示原价划线 + 改后价 -->
               <div class="text-caption text-grey-7">
                 <template v-if="it.edited === 1">
-                  <span class="text-grey-5" style="text-decoration: line-through">
+                  <span
+                    class="text-grey-5"
+                    style="text-decoration: line-through"
+                  >
                     ¥{{ fmtPrice(it.orig_price) }}
                   </span>
                   <span class="text-weight-medium text-negative q-ml-xs">
@@ -118,7 +144,9 @@
                 </template>
                 <template v-else>¥{{ fmtPrice(it.price) }}</template>
               </div>
-              <div class="text-caption text-weight-medium">¥{{ fmtPrice(it.price * it.qty) }}</div>
+              <div class="text-caption text-weight-medium"
+                >¥{{ fmtPrice(it.price * it.qty) }}</div
+              >
             </div>
             <q-chip
               v-if="it.edited === 1"
@@ -136,8 +164,17 @@
 
         <div class="row items-center justify-end q-gutter-sm q-mt-sm">
           <span class="text-caption text-grey-7">共 {{ o.count }} 件</span>
-          <span class="text-caption text-weight-bold text-negative">合计 ¥{{ fmtPrice(o.total) }}</span>
-          <q-chip v-if="o.status === 0" color="orange" text-color="white" dense size="sm" class="q-ma-none">
+          <span class="text-caption text-weight-bold text-negative"
+            >合计 ¥{{ fmtPrice(o.total) }}</span
+          >
+          <q-chip
+            v-if="o.status === 0"
+            color="orange"
+            text-color="white"
+            dense
+            size="sm"
+            class="q-ma-none"
+          >
             待结单
           </q-chip>
         </div>
@@ -153,7 +190,9 @@
           label="加载更多"
           @click="loadOrders(false)"
         />
-        <span v-else-if="orders.length > 0" class="text-caption text-grey-6">— 没有更多了 —</span>
+        <span v-else-if="orders.length > 0" class="text-caption text-grey-6"
+          >— 没有更多了 —</span
+        >
       </div>
     </div>
 
@@ -166,7 +205,9 @@
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <div class="text-caption text-grey-7">订单 {{ printOrder?.order_no }}</div>
+          <div class="text-caption text-grey-7"
+            >订单 {{ printOrder?.order_no }}</div
+          >
 
           <!-- 已添加设备：点选即打印（编码按各设备设置） -->
           <q-list v-if="printers.length > 0" bordered separator class="q-mt-sm">
@@ -180,19 +221,39 @@
             >
               <q-item-section avatar>
                 <q-icon
-                  :name="p.kind === 'label' ? 'label' : p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
-                  :color="p.kind === 'label' ? 'deep-purple' : p.conn === 'spp' ? 'teal' : 'primary'"
+                  :name="
+                    p.kind === 'label'
+                      ? 'label'
+                      : p.conn === 'spp'
+                        ? 'settings_input_antenna'
+                        : 'bluetooth'
+                  "
+                  :color="
+                    p.kind === 'label'
+                      ? 'deep-purple'
+                      : p.conn === 'spp'
+                        ? 'teal'
+                        : 'primary'
+                  "
                 />
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{ p.name }}</q-item-label>
                 <q-item-label caption>
                   {{ p.kind === "label" ? "标签打印机" : "小票机" }} ·
-                  {{ p.transport === "wifi" ? "WiFi" : p.conn === "spp" ? "传统蓝牙" : "低功耗" }}
+                  {{
+                    p.transport === "wifi"
+                      ? "WiFi"
+                      : p.conn === "spp"
+                        ? "传统蓝牙"
+                        : "低功耗"
+                  }}
                   · {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
                 </q-item-label>
               </q-item-section>
-              <q-item-section side><q-icon name="print" color="grey-7" /></q-item-section>
+              <q-item-section side
+                ><q-icon name="print" color="grey-7"
+              /></q-item-section>
             </q-item>
           </q-list>
 
@@ -233,15 +294,24 @@
         </q-card-section>
 
         <q-card-section class="q-pt-none">
-          <div class="text-caption text-grey-7">订单 {{ priceOrder?.order_no }}</div>
+          <div class="text-caption text-grey-7"
+            >订单 {{ priceOrder?.order_no }}</div
+          >
 
           <div class="q-mt-sm price-rows">
-            <div v-for="r in priceRows" :key="r.goods_id" class="price-row row items-center">
+            <div
+              v-for="r in priceRows"
+              :key="r.goods_id"
+              class="price-row row items-center"
+            >
               <div class="col">
                 <div class="text-caption ellipsis">{{ r.name }}</div>
                 <div class="text-caption text-grey-6">
                   原价 ¥{{ fmtPrice(r.orig) }}
-                  <span v-if="r.edited" class="text-weight-medium text-negative q-ml-xs">
+                  <span
+                    v-if="r.edited"
+                    class="text-weight-medium text-negative q-ml-xs"
+                  >
                     现改价 ¥{{ fmtPrice(r.initial) }}
                   </span>
                 </div>
@@ -269,9 +339,21 @@
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="全部重置" color="grey-8" icon="restart_alt" @click="resetAll" />
+          <q-btn
+            flat
+            label="全部重置"
+            color="grey-8"
+            icon="restart_alt"
+            @click="resetAll"
+          />
           <q-btn flat label="取消" v-close-popup />
-          <q-btn color="primary" label="保存" unelevated :loading="savingPrice" @click="savePrice" />
+          <q-btn
+            color="primary"
+            label="保存"
+            unelevated
+            :loading="savingPrice"
+            @click="savePrice"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -398,7 +480,10 @@ async function finishOrder(o: Order) {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `结单失败（${res.status}）`);
-    $q.notify({ message: `结单成功，合计 ¥${fmtPrice(data.total)}`, color: "positive" });
+    $q.notify({
+      message: `结单成功，合计 ¥${fmtPrice(data.total)}`,
+      color: "positive"
+    });
     await loadOrders(true);
   } catch (e) {
     $q.notify({ message: describeErrorLocal(e), color: "negative" });
@@ -451,10 +536,14 @@ async function fetchMenuMap(): Promise<Record<string, string>> {
     let got = 0;
     let total = Infinity;
     for (let page = 1; page <= 20 && got < total; page++) {
-      const res = await fetch(`/api/goods/page?menu_id=0&page=${page}&page_size=100`);
+      const res = await fetch(
+        `/api/goods/page?menu_id=0&page=${page}&page_size=100`
+      );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) break;
-      const list: { id: string; menu_id: string }[] = Array.isArray(data.list) ? data.list : [];
+      const list: { id: string; menu_id: string }[] = Array.isArray(data.list)
+        ? data.list
+        : [];
       for (const g of list) map[g.id] = g.menu_id;
       got += list.length;
       total = typeof data.total === "number" ? data.total : got;
@@ -470,7 +559,7 @@ async function fetchMenuMap(): Promise<Record<string, string>> {
 async function copyToCart(o: Order) {
   const menuMap = await fetchMenuMap();
   copyOrderToCart(
-    o.items.map((it) => ({
+    o.items.map(it => ({
       goods_id: it.goods_id,
       menu_id: menuMap[it.goods_id] ?? "",
       name: it.name,
@@ -502,7 +591,7 @@ const priceRows = ref<PriceRow[]>([]);
 
 function openPrice(o: Order) {
   priceOrder.value = o;
-  priceRows.value = o.items.map((it) => ({
+  priceRows.value = o.items.map(it => ({
     goods_id: it.goods_id,
     name: it.name,
     orig: it.orig_price || it.price,
@@ -544,14 +633,15 @@ async function savePrice() {
   savingPrice.value = true;
   try {
     await Promise.all(
-      changed.map((c) =>
+      changed.map(c =>
         fetch("/api/order/price", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: priceOrder.value!.id, ...c })
-        }).then(async (res) => {
+        }).then(async res => {
           const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.message || `改价失败（${res.status}）`);
+          if (!res.ok)
+            throw new Error(data.message || `改价失败（${res.status}）`);
         })
       )
     );
@@ -625,7 +715,12 @@ function toReceipt(o: Order): ReceiptOrder {
     createdAt: o.created_at,
     count: o.count,
     total: o.total,
-    items: o.items.map((it) => ({ name: it.name, spec: it.spec, qty: it.qty, price: it.price }))
+    items: o.items.map(it => ({
+      name: it.name,
+      spec: it.spec,
+      qty: it.qty,
+      price: it.price
+    }))
   };
 }
 
@@ -640,7 +735,8 @@ async function printWith(p: SavedPrinter) {
   }
   if (p.kind === "label") {
     printStatusOk.value = false;
-    printStatus.value = "标签打印即将支持，暂无法使用该设备；小票打印请在管理页把设备类型改为小票机";
+    printStatus.value =
+      "标签打印即将支持，暂无法使用该设备；小票打印请在管理页把设备类型改为小票机";
     return;
   }
   printing.value = true;
@@ -649,7 +745,8 @@ async function printWith(p: SavedPrinter) {
     const payload = buildOrderPayload(toReceipt(printOrder.value), p.encoding);
     let name: string;
     if (p.conn === "spp") {
-      if (!isNative()) throw new Error("网页端不支持传统蓝牙打印，请在 App 中打印");
+      if (!isNative())
+        throw new Error("网页端不支持传统蓝牙打印，请在 App 中打印");
       name = await sppPrint({ address: p.id, name: p.name }, payload);
     } else if (isNative()) {
       try {

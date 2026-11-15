@@ -16,7 +16,10 @@
     </div>
 
     <!-- 空态 -->
-    <div v-if="cart.length === 0" class="column items-center justify-center empty-box">
+    <div
+      v-if="cart.length === 0"
+      class="column items-center justify-center empty-box"
+    >
       <q-icon name="shopping_cart" size="64px" color="grey-4" />
       <div class="text-h6 text-grey-7 q-mt-md">购物车是空的</div>
       <q-btn class="q-mt-md" color="primary" label="去点单" to="/" />
@@ -24,17 +27,25 @@
 
     <!-- 明细列表（带图片） -->
     <div v-else class="cart-list">
-      <div v-for="line in cart" :key="line.id" class="cart-line row items-center">
+      <div
+        v-for="line in cart"
+        :key="line.id"
+        class="cart-line row items-center"
+      >
         <div class="cart-thumb">
           <img v-if="line.image" :src="imgSrc(line.image)" :alt="line.name" />
           <q-icon v-else name="shopping_bag" size="28px" color="grey-5" />
         </div>
         <div class="col">
           <div class="text-weight-medium ellipsis">{{ line.name }}</div>
-          <div v-if="line.spec" class="text-caption text-grey-7 ellipsis">{{ line.spec }}</div>
+          <div v-if="line.spec" class="text-caption text-grey-7 ellipsis">{{
+            line.spec
+          }}</div>
           <div class="text-negative text-weight-bold q-mt-xs">
             ¥{{ fmtPrice(line.price) }}
-            <span class="text-caption text-grey-6 text-weight-regular"> / 件</span>
+            <span class="text-caption text-grey-6 text-weight-regular">
+              / 件</span
+            >
           </div>
         </div>
         <div class="column items-end q-gutter-xs">
@@ -77,7 +88,9 @@
               @click="confirmRemove(line)"
             />
           </div>
-          <div class="text-caption text-grey-6">小计 ¥{{ fmtPrice(line.price * line.qty) }}</div>
+          <div class="text-caption text-grey-6"
+            >小计 ¥{{ fmtPrice(line.price * line.qty) }}</div
+          >
         </div>
       </div>
     </div>
@@ -85,12 +98,23 @@
     <!-- 底部合计条 -->
     <div v-if="cart.length > 0" class="cart-summary row items-center q-px-md">
       <div class="col">
-        <div class="text-caption text-grey-7" style="line-height: 1">共 {{ cartCount }} 件</div>
-        <div class="text-h6 text-negative text-weight-bold" style="line-height: 1.3">
+        <div class="text-caption text-grey-7" style="line-height: 1"
+          >共 {{ cartCount }} 件</div
+        >
+        <div
+          class="text-h6 text-negative text-weight-bold"
+          style="line-height: 1.3"
+        >
           ¥{{ fmtPrice(cartTotal) }}
         </div>
       </div>
-      <q-btn color="primary" label="去结算" unelevated :loading="ordering" @click="checkout" />
+      <q-btn
+        color="primary"
+        label="去结算"
+        unelevated
+        :loading="ordering"
+        @click="checkout"
+      />
     </div>
   </q-page>
 </template>
@@ -124,7 +148,17 @@ function pageStyle(offset: number, height: number) {
 }
 
 // 数量输入框直接改数字：0/非法 → 移除该行，超库存由 setQty 封顶
-function onQtyInput(line: { id: string; name: string; price: number; stock: number; image?: string; spec?: string }, v: string | number) {
+function onQtyInput(
+  line: {
+    id: string;
+    name: string;
+    price: number;
+    stock: number;
+    image?: string;
+    spec?: string;
+  },
+  v: string | number
+) {
   const n = Math.floor(Number(v));
   setQty(line, Number.isFinite(n) ? n : 0);
 }
@@ -154,7 +188,7 @@ async function checkout() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        items: cart.value.map((l) => ({ id: l.id, qty: l.qty }))
+        items: cart.value.map(l => ({ id: l.id, qty: l.qty }))
       })
     });
     const data = await res.json().catch(() => ({}));
@@ -164,7 +198,10 @@ async function checkout() {
     $q.notify({ message: `下单成功 ${data.order_no}`, color: "positive" });
     void router.push("/order");
   } catch (e) {
-    $q.notify({ message: e instanceof Error ? e.message : String(e), color: "negative" });
+    $q.notify({
+      message: e instanceof Error ? e.message : String(e),
+      color: "negative"
+    });
   } finally {
     ordering.value = false;
   }

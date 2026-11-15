@@ -30,13 +30,19 @@ function patchFetch() {
   const rawFetch = window.fetch.bind(window);
 
   window.fetch = async (input, init = {}) => {
-    const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof Request
+          ? input.url
+          : String(input);
     if (!url.includes("/api/")) return rawFetch(input, init);
 
     const send = () => {
       const headers = new Headers(init.headers);
       const token = activeToken();
-      if (token && !headers.has("Authorization")) headers.set("Authorization", `Bearer ${token}`);
+      if (token && !headers.has("Authorization"))
+        headers.set("Authorization", `Bearer ${token}`);
       return rawFetch(input, { ...init, headers });
     };
 
@@ -44,7 +50,10 @@ function patchFetch() {
 
     // 游客身份失效（已注销/服务端无此身份）：自动补签一次后重试
     if (res.status === 401 && !hasToken()) {
-      const data = await res.clone().json().catch(() => ({} as { need_guest?: boolean }));
+      const data = await res
+        .clone()
+        .json()
+        .catch(() => ({}) as { need_guest?: boolean });
       if (data && data.need_guest) {
         setGuestToken("");
         try {

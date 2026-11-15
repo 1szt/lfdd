@@ -44,7 +44,9 @@
             :hint="authTab === 'register' ? '至少 8 位' : undefined"
             @keyup.enter="submitAuth"
           />
-          <div v-if="authError" class="text-negative text-caption">{{ authError }}</div>
+          <div v-if="authError" class="text-negative text-caption">{{
+            authError
+          }}</div>
           <q-btn
             color="primary"
             :label="authTab === 'login' ? '登录' : '注册并登录'"
@@ -60,7 +62,14 @@
       <div class="row items-center q-mb-sm">
         <div class="text-h6">管理</div>
         <q-space />
-        <q-btn flat dense color="negative" icon="logout" label="退出登录" @click="logout" />
+        <q-btn
+          flat
+          dense
+          color="negative"
+          icon="logout"
+          label="退出登录"
+          @click="logout"
+        />
       </div>
 
       <q-tabs
@@ -72,7 +81,12 @@
         align="justify"
         narrow-indicator
       >
-        <q-tab v-if="isAdmin" name="goods" label="商品管理" icon="inventory_2" />
+        <q-tab
+          v-if="isAdmin"
+          name="goods"
+          label="商品管理"
+          icon="inventory_2"
+        />
         <q-tab v-if="isAdmin" name="menus" label="分类管理" icon="category" />
         <q-tab name="print" label="设备管理" icon="print" />
         <q-tab v-if="isAdmin" name="users" label="用户管理" icon="people" />
@@ -84,7 +98,10 @@
         <!-- ============ 商品管理 ============ -->
         <q-tab-panel name="goods" class="q-pa-none q-pt-sm">
           <!-- 分类筛选：横向点选，替代下拉框 -->
-          <div class="row no-wrap q-gutter-xs q-px-none" style="overflow-x: auto">
+          <div
+            class="row no-wrap q-gutter-xs q-px-none"
+            style="overflow-x: auto"
+          >
             <q-btn
               v-for="opt in menuFilterOptions"
               :key="opt.value"
@@ -92,8 +109,12 @@
               unelevated
               size="sm"
               :label="opt.label"
-              :color="String(filterMenu) === String(opt.value) ? 'primary' : 'grey-3'"
-              :text-color="String(filterMenu) === String(opt.value) ? 'white' : 'grey-8'"
+              :color="
+                String(filterMenu) === String(opt.value) ? 'primary' : 'grey-3'
+              "
+              :text-color="
+                String(filterMenu) === String(opt.value) ? 'white' : 'grey-8'
+              "
               @click="setFilter(opt.value)"
             />
           </div>
@@ -113,7 +134,9 @@
             还没有分类，先到「分类管理」创建一个分类。
           </div>
 
-          <div v-else-if="goodsLoading" class="text-grey-6 q-pa-md">加载中…</div>
+          <div v-else-if="goodsLoading" class="text-grey-6 q-pa-md"
+            >加载中…</div
+          >
 
           <div v-else-if="goodsList.length === 0" class="text-grey-6 q-pa-md">
             该分类下暂无商品，点右上角「新建商品」添加。
@@ -133,11 +156,18 @@
               <q-item-section avatar>
                 <div class="goods-thumb">
                   <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
-                  <q-icon v-else name="shopping_bag" size="22px" color="grey-5" />
+                  <q-icon
+                    v-else
+                    name="shopping_bag"
+                    size="22px"
+                    color="grey-5"
+                  />
                 </div>
               </q-item-section>
               <q-item-section>
-                <q-item-label class="text-weight-medium">{{ g.name }}</q-item-label>
+                <q-item-label class="text-weight-medium">{{
+                  g.name
+                }}</q-item-label>
                 <q-item-label caption>
                   {{ menuName(g.menu_id) }}
                   <span v-if="g.spec"> · {{ g.spec }}</span>
@@ -160,7 +190,14 @@
               <q-item-section side>
                 <div class="row no-wrap">
                   <q-btn dense flat round icon="edit" @click="openGoods(g)" />
-                  <q-btn dense flat round icon="delete" color="negative" @click="removeGoods(g)" />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    icon="delete"
+                    color="negative"
+                    @click="removeGoods(g)"
+                  />
                 </div>
               </q-item-section>
             </q-item>
@@ -170,12 +207,21 @@
         <!-- ============ 分类管理 ============ -->
         <q-tab-panel name="menus" class="q-pa-none q-pt-sm">
           <q-toolbar class="q-px-none">
-            <div class="text-grey-7 text-caption">拖动分类行调整前台侧边栏顺序</div>
+            <div class="text-grey-7 text-caption"
+              >拖动分类行调整前台侧边栏顺序</div
+            >
             <q-space />
-            <q-btn color="primary" icon="add" label="新建分类" @click="openMenu()" />
+            <q-btn
+              color="primary"
+              icon="add"
+              label="新建分类"
+              @click="openMenu()"
+            />
           </q-toolbar>
 
-          <div v-if="menus.length === 0" class="text-grey-6 q-pa-md">暂无分类。</div>
+          <div v-if="menus.length === 0" class="text-grey-6 q-pa-md"
+            >暂无分类。</div
+          >
 
           <q-list v-else separator>
             <q-item
@@ -198,7 +244,14 @@
               <q-item-section side>
                 <div class="row no-wrap">
                   <q-btn dense flat round icon="edit" @click="openMenu(m)" />
-                  <q-btn dense flat round icon="delete" color="negative" @click="removeMenu(m)" />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    icon="delete"
+                    color="negative"
+                    @click="removeMenu(m)"
+                  />
                 </div>
               </q-item-section>
             </q-item>
@@ -231,7 +284,9 @@
               @click="stopScan"
             />
             <q-space />
-            <span class="text-caption text-grey-6">点已保存设备可编辑 / 测试 / 删除</span>
+            <span class="text-caption text-grey-6"
+              >点已保存设备可编辑 / 测试 / 删除</span
+            >
           </q-toolbar>
 
           <q-banner
@@ -239,7 +294,9 @@
             dense
             rounded
             class="q-mb-sm"
-            :class="statusOk ? 'bg-green-1 text-green-9' : 'bg-red-1 text-red-9'"
+            :class="
+              statusOk ? 'bg-green-1 text-green-9' : 'bg-red-1 text-red-9'
+            "
           >
             {{ status }}
           </q-banner>
@@ -257,21 +314,46 @@
             <q-item v-for="p in printers" :key="p.key">
               <q-item-section avatar>
                 <q-icon
-                  :name="p.kind === 'label' ? 'label' : p.conn === 'spp' ? 'settings_input_antenna' : 'bluetooth'"
-                  :color="p.kind === 'label' ? 'deep-purple' : p.conn === 'spp' ? 'teal' : 'primary'"
+                  :name="
+                    p.kind === 'label'
+                      ? 'label'
+                      : p.conn === 'spp'
+                        ? 'settings_input_antenna'
+                        : 'bluetooth'
+                  "
+                  :color="
+                    p.kind === 'label'
+                      ? 'deep-purple'
+                      : p.conn === 'spp'
+                        ? 'teal'
+                        : 'primary'
+                  "
                 />
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{ p.name }}</q-item-label>
                 <q-item-label caption>
                   {{ p.kind === "label" ? "标签打印机" : "小票机" }} ·
-                  {{ p.transport === "wifi" ? "WiFi" : p.conn === "spp" ? "传统蓝牙" : "低功耗" }}
+                  {{
+                    p.transport === "wifi"
+                      ? "WiFi"
+                      : p.conn === "spp"
+                        ? "传统蓝牙"
+                        : "低功耗"
+                  }}
                   · {{ p.id }} · {{ p.encoding === "utf8" ? "UTF-8" : "GBK" }}
                 </q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row no-wrap q-gutter-xs">
-                  <q-btn dense flat round icon="edit" aria-label="编辑打印机" @click="openEdit(p)" />
+                  <q-btn
+                    dense
+                    flat
+                    round
+                    icon="edit"
+                    aria-label="编辑打印机"
+                    @click="openEdit(p)"
+                  />
                   <q-btn
                     dense
                     flat
@@ -304,7 +386,9 @@
                 </q-item-label>
                 <q-item v-if="bleDevices.length === 0">
                   <q-item-section class="text-grey-6">
-                    {{ scanning ? "搜索中，等待附近设备广播…" : "未搜索到设备" }}
+                    {{
+                      scanning ? "搜索中，等待附近设备广播…" : "未搜索到设备"
+                    }}
                   </q-item-section>
                 </q-item>
                 <q-item
@@ -379,11 +463,21 @@
               @keyup.enter="loadUsers(1)"
             >
               <template #append>
-                <q-icon name="search" class="cursor-pointer" @click="loadUsers(1)" />
+                <q-icon
+                  name="search"
+                  class="cursor-pointer"
+                  @click="loadUsers(1)"
+                />
               </template>
             </q-input>
             <div class="row no-wrap q-gutter-sm items-center">
-              <q-btn flat dense icon="refresh" label="刷新" @click="loadUsers()" />
+              <q-btn
+                flat
+                dense
+                icon="refresh"
+                label="刷新"
+                @click="loadUsers()"
+              />
               <q-btn
                 color="primary"
                 dense
@@ -392,13 +486,17 @@
                 unelevated
                 @click="openAddUser"
               />
-              <span class="text-caption text-grey-6 gt-xs">共 {{ userTotal }} 位用户</span>
+              <span class="text-caption text-grey-6 gt-xs"
+                >共 {{ userTotal }} 位用户</span
+              >
             </div>
           </div>
 
           <div v-if="usersLoading" class="text-grey-6 q-pa-md">加载中…</div>
 
-          <div v-else-if="users.length === 0" class="text-grey-6 q-pa-md">没有匹配的用户。</div>
+          <div v-else-if="users.length === 0" class="text-grey-6 q-pa-md"
+            >没有匹配的用户。</div
+          >
 
           <q-list v-else separator>
             <q-item v-for="u in users" :key="u.id">
@@ -410,7 +508,12 @@
               <q-item-section>
                 <q-item-label class="text-weight-medium ellipsis">
                   {{ u.name || u.username }}
-                  <q-badge v-if="u.id === meId" color="orange" label="我" class="q-ml-xs" />
+                  <q-badge
+                    v-if="u.id === meId"
+                    color="orange"
+                    label="我"
+                    class="q-ml-xs"
+                  />
                   <q-badge
                     :color="u.role === 2 ? 'purple' : 'grey-5'"
                     :label="u.role === 2 ? '管理员' : '普通用户'"
@@ -433,7 +536,9 @@
                       dense
                       :color="u.status === 1 ? 'positive' : 'negative'"
                       :title="u.status === 1 ? '点击禁用' : '点击启用'"
-                      @update:model-value="(v: boolean) => toggleUserStatus(u, v)"
+                      @update:model-value="
+                        (v: boolean) => toggleUserStatus(u, v)
+                      "
                     />
                     <q-btn
                       dense
@@ -441,7 +546,11 @@
                       round
                       icon="admin_panel_settings"
                       :color="u.role === 2 ? 'purple' : 'grey-6'"
-                      :title="u.role === 2 ? '当前是管理员，点击设为普通' : '点击设为管理员'"
+                      :title="
+                        u.role === 2
+                          ? '当前是管理员，点击设为普通'
+                          : '点击设为管理员'
+                      "
                       @click="toggleUserRole(u)"
                     />
                   </div>
@@ -479,7 +588,10 @@
           </q-list>
 
           <!-- 分页 -->
-          <div v-if="userTotal > userPageSize" class="row justify-center q-gutter-sm q-mt-sm">
+          <div
+            v-if="userTotal > userPageSize"
+            class="row justify-center q-gutter-sm q-mt-sm"
+          >
             <q-btn
               dense
               flat
@@ -504,8 +616,20 @@
             <q-card style="width: 420px; max-width: 95vw">
               <q-card-section class="text-h6">添加用户</q-card-section>
               <q-card-section class="column q-gutter-sm q-pt-none">
-                <q-input v-model="addForm.username" outlined dense label="用户名" autofocus />
-                <q-input v-model="addForm.email" outlined dense label="邮箱" type="email" />
+                <q-input
+                  v-model="addForm.username"
+                  outlined
+                  dense
+                  label="用户名"
+                  autofocus
+                />
+                <q-input
+                  v-model="addForm.email"
+                  outlined
+                  dense
+                  label="邮箱"
+                  type="email"
+                />
                 <q-input
                   v-model="addForm.password"
                   outlined
@@ -541,8 +665,16 @@
             <q-card style="width: 420px; max-width: 95vw">
               <q-card-section class="text-h6">编辑用户</q-card-section>
               <q-card-section class="column q-gutter-sm q-pt-none">
-                <div class="text-caption text-grey-7">邮箱：{{ editForm.email }}</div>
-                <q-input v-model="editForm.username" outlined dense label="用户名" autofocus />
+                <div class="text-caption text-grey-7"
+                  >邮箱：{{ editForm.email }}</div
+                >
+                <q-input
+                  v-model="editForm.username"
+                  outlined
+                  dense
+                  label="用户名"
+                  autofocus
+                />
                 <q-input
                   v-model="editForm.password"
                   outlined
@@ -594,7 +726,8 @@
                         />
                       </q-item-label>
                       <q-item-label caption>
-                        IP {{ s.ip || "未知" }} · 登录 {{ fmtTime(s.created_at) }} · 过期
+                        IP {{ s.ip || "未知" }} · 登录
+                        {{ fmtTime(s.created_at) }} · 过期
                         {{ fmtTime(s.expires_at) }}
                       </q-item-label>
                     </q-item-section>
@@ -668,11 +801,18 @@
                     style="min-width: 150px"
                   />
                   <span class="text-caption text-grey-7">
-                    开启时请求带 thinking.type=enabled 与 reasoning_effort；关闭时为 disabled
+                    开启时请求带 thinking.type=enabled 与
+                    reasoning_effort；关闭时为 disabled
                   </span>
                 </div>
                 <div class="row q-gutter-sm">
-                  <q-btn color="primary" label="保存" unelevated :loading="aiSaving" @click="saveAi" />
+                  <q-btn
+                    color="primary"
+                    label="保存"
+                    unelevated
+                    :loading="aiSaving"
+                    @click="saveAi"
+                  />
                   <q-btn
                     outline
                     color="primary"
@@ -693,7 +833,9 @@
 
             <!-- 系统提示词 -->
             <q-card flat bordered>
-              <q-card-section class="text-subtitle1">AI 商品匹配 · 系统提示词</q-card-section>
+              <q-card-section class="text-subtitle1"
+                >AI 商品匹配 · 系统提示词</q-card-section
+              >
               <q-card-section class="q-pt-none">
                 <q-input
                   v-model="aiForm.system_prompt"
@@ -701,7 +843,7 @@
                   outlined
                   autogrow
                   label="系统提示词"
-                  hint="匹配点单文字时发给大模型的指令；要求只输出 JSON 数组 [{&quot;id&quot;:&quot;商品id&quot;,&quot;qty&quot;:数量}]"
+                  hint='匹配点单文字时发给大模型的指令；要求只输出 JSON 数组 [{"id":"商品id","qty":数量}]'
                 />
 
                 <!-- 拼接后的完整提示词展示：system 提示词 + 每次点单拼接的用户消息 -->
@@ -772,13 +914,29 @@
             />
             <q-input
               v-model="devForm.id"
-              :label="devForm.transport === 'wifi' ? '打印机地址（IP:端口）' : '蓝牙地址'"
+              :label="
+                devForm.transport === 'wifi'
+                  ? '打印机地址（IP:端口）'
+                  : '蓝牙地址'
+              "
               outlined
               dense
-              :placeholder="devForm.transport === 'wifi' ? '192.168.1.88:9100' : undefined"
-              :hint="devForm.transport === 'wifi' ? 'WiFi 打印即将支持，可先保存' : undefined"
+              :placeholder="
+                devForm.transport === 'wifi' ? '192.168.1.88:9100' : undefined
+              "
+              :hint="
+                devForm.transport === 'wifi'
+                  ? 'WiFi 打印即将支持，可先保存'
+                  : undefined
+              "
             />
-            <q-input v-model="devForm.name" label="设备名称" outlined dense autofocus />
+            <q-input
+              v-model="devForm.name"
+              label="设备名称"
+              outlined
+              dense
+              autofocus
+            />
             <q-select
               v-model="devForm.encoding"
               :options="encOptions"
@@ -816,7 +974,13 @@
               outlined
               dense
             />
-            <q-input v-model="goodsForm.name" label="名称" outlined dense autofocus />
+            <q-input
+              v-model="goodsForm.name"
+              label="名称"
+              outlined
+              dense
+              autofocus
+            />
             <q-input
               v-model="goodsForm.alias"
               label="别名（多个用逗号分隔，可空）"
@@ -833,7 +997,12 @@
               outlined
               dense
             />
-            <q-input v-model="goodsForm.spec" label="规格（如：大杯 / 500g，可空）" outlined dense />
+            <q-input
+              v-model="goodsForm.spec"
+              label="规格（如：大杯 / 500g，可空）"
+              outlined
+              dense
+            />
             <q-input
               v-model="goodsForm.stock"
               label="库存"
@@ -874,12 +1043,21 @@
                 @click="goodsForm.image = ''"
               />
             </div>
-            <q-toggle v-model="goodsForm.statusOn" label="上架销售" color="positive" />
+            <q-toggle
+              v-model="goodsForm.statusOn"
+              label="上架销售"
+              color="positive"
+            />
           </q-card-section>
 
           <q-card-actions align="right">
             <q-btn flat label="取消" v-close-popup />
-            <q-btn color="primary" label="保存" :loading="goodsSaving" @click="saveGoods" />
+            <q-btn
+              color="primary"
+              label="保存"
+              :loading="goodsSaving"
+              @click="saveGoods"
+            />
           </q-card-actions>
         </q-card>
       </q-dialog>
@@ -902,11 +1080,15 @@
           </q-card-section>
           <q-card-actions align="right">
             <q-btn flat label="取消" v-close-popup />
-            <q-btn color="primary" label="保存" :loading="menuSaving" @click="saveMenu" />
+            <q-btn
+              color="primary"
+              label="保存"
+              :loading="menuSaving"
+              @click="saveMenu"
+            />
           </q-card-actions>
         </q-card>
       </q-dialog>
-
     </div>
   </q-page>
 </template>
@@ -985,7 +1167,10 @@ function setToken(t: string) {
 
 // 统一请求：自动带 Bearer token，401 时清理登录态
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function api(path: string, opts: { method?: string; body?: unknown } = {}): Promise<any> {
+async function api(
+  path: string,
+  opts: { method?: string; body?: unknown } = {}
+): Promise<any> {
   const res = await fetch(path, {
     method: opts.method ?? "GET",
     headers: {
@@ -1013,12 +1198,15 @@ async function submitAuth() {
   authBusy.value = true;
   try {
     const isRegister = authTab.value === "register";
-    const data = await api(isRegister ? "/api/auth/register" : "/api/auth/login", {
-      method: "POST",
-      body: isRegister
-        ? { email: regEmail.value.trim(), password: password.value }
-        : { account: account.value.trim(), password: password.value }
-    });
+    const data = await api(
+      isRegister ? "/api/auth/register" : "/api/auth/login",
+      {
+        method: "POST",
+        body: isRegister
+          ? { email: regEmail.value.trim(), password: password.value }
+          : { account: account.value.trim(), password: password.value }
+      }
+    );
     setToken(data.token);
     password.value = "";
     await loadMe();
@@ -1052,14 +1240,16 @@ const menuDlg = ref(false);
 const menuSaving = ref(false);
 const menuForm = reactive({ id: "", name: "" });
 
-const menuOptions = computed(() => menus.value.map((m) => ({ label: m.name, value: m.id })));
+const menuOptions = computed(() =>
+  menus.value.map(m => ({ label: m.name, value: m.id }))
+);
 const menuFilterOptions = computed(() => [
   { label: "全部分类", value: "0" },
   ...menuOptions.value
 ]);
 
 function menuName(id: string) {
-  return menus.value.find((m) => m.id === id)?.name ?? "-";
+  return menus.value.find(m => m.id === id)?.name ?? "-";
 }
 
 async function loadMenus() {
@@ -1082,9 +1272,15 @@ async function saveMenu() {
   menuSaving.value = true;
   try {
     if (menuForm.id) {
-      await api("/api/menu/update", { method: "POST", body: { id: menuForm.id, name } });
+      await api("/api/menu/update", {
+        method: "POST",
+        body: { id: menuForm.id, name }
+      });
     } else {
-      await api("/api/menu/create", { method: "POST", body: { name, sort: menus.value.length } });
+      await api("/api/menu/create", {
+        method: "POST",
+        body: { name, sort: menus.value.length }
+      });
     }
     $q.notify({ message: "保存成功", color: "positive" });
     menuDlg.value = false;
@@ -1125,7 +1321,7 @@ async function onMenuDrop(idx: number) {
   const from = dragMenuIdx.value;
   dragMenuIdx.value = null;
   if (from === null || from === idx) return;
-  const ids = menus.value.map((m) => m.id);
+  const ids = menus.value.map(m => m.id);
   const moved = ids.splice(from, 1)[0]!;
   ids.splice(idx, 0, moved);
   try {
@@ -1175,7 +1371,9 @@ async function uploadGoodsImage(f: unknown) {
     fd.append("file", f as File);
     const res = await fetch("/api/goods/upload", {
       method: "POST",
-      ...(token.value ? { headers: { Authorization: `Bearer ${token.value}` } } : {}),
+      ...(token.value
+        ? { headers: { Authorization: `Bearer ${token.value}` } }
+        : {}),
       body: fd
     });
     if (res.status === 401) {
@@ -1197,7 +1395,11 @@ async function uploadGoodsImage(f: unknown) {
 async function loadGoods() {
   goodsLoading.value = true;
   try {
-    const params = new URLSearchParams({ all: "1", page: "1", page_size: "100" });
+    const params = new URLSearchParams({
+      all: "1",
+      page: "1",
+      page_size: "100"
+    });
     if (filterMenu.value !== "0") params.set("menu_id", filterMenu.value);
     const data = await api(`/api/goods/page?${params.toString()}`);
     goodsList.value = Array.isArray(data.list) ? data.list : [];
@@ -1227,7 +1429,7 @@ async function onGoodsDrop(idx: number) {
   const from = dragGoodsIdx.value;
   dragGoodsIdx.value = null;
   if (from === null || from === idx) return;
-  const ids = goodsList.value.map((g) => g.id);
+  const ids = goodsList.value.map(g => g.id);
   const moved = ids.splice(from, 1)[0]!;
   ids.splice(idx, 0, moved);
   // 乐观更新：先本地换序，保存成功后刷新
@@ -1262,7 +1464,8 @@ function openGoods(g?: AdminGoods) {
     goodsForm.sort = g.sort;
   } else {
     goodsForm.id = "";
-    goodsForm.menu_id = filterMenu.value !== "0" ? filterMenu.value : menus.value[0]!.id;
+    goodsForm.menu_id =
+      filterMenu.value !== "0" ? filterMenu.value : menus.value[0]!.id;
     goodsForm.name = "";
     goodsForm.alias = "";
     goodsForm.priceYuan = "0";
@@ -1312,7 +1515,10 @@ async function saveGoods() {
       sort: goodsForm.sort
     };
     if (goodsForm.id) {
-      await api("/api/goods/update", { method: "POST", body: { id: goodsForm.id, ...body } });
+      await api("/api/goods/update", {
+        method: "POST",
+        body: { id: goodsForm.id, ...body }
+      });
     } else {
       await api("/api/goods/create", { method: "POST", body });
     }
@@ -1454,7 +1660,8 @@ function openAdd(d: BleScanDevice | SppDevice, conn: PrinterConn) {
   devForm.conn = conn;
   devForm.transport = "bt";
   devForm.kind = "receipt";
-  devForm.id = conn === "ble" ? (d as BleScanDevice).deviceId : (d as SppDevice).address;
+  devForm.id =
+    conn === "ble" ? (d as BleScanDevice).deviceId : (d as SppDevice).address;
   devForm.name = d.name || "小票机";
   devForm.encoding = "gbk";
   devDlg.value = true;
@@ -1482,13 +1689,21 @@ function saveDev() {
   const name = devForm.name.trim() || "小票机";
   if (devForm.editing) {
     updatePrinter(devForm.key, {
-      id, name, conn: devForm.conn,
-      transport: devForm.transport, kind: devForm.kind, encoding: devForm.encoding
+      id,
+      name,
+      conn: devForm.conn,
+      transport: devForm.transport,
+      kind: devForm.kind,
+      encoding: devForm.encoding
     });
   } else {
     savePrinter({
-      id, name, conn: devForm.conn,
-      transport: devForm.transport, kind: devForm.kind, encoding: devForm.encoding
+      id,
+      name,
+      conn: devForm.conn,
+      transport: devForm.transport,
+      kind: devForm.kind,
+      encoding: devForm.encoding
     });
   }
   devDlg.value = false;
@@ -1512,7 +1727,8 @@ async function testPrinter(p: SavedPrinter) {
   }
   if (p.kind === "label") {
     statusOk.value = false;
-    status.value = "标签打印即将支持，暂无法测试；小票打印请把设备类型改为小票机";
+    status.value =
+      "标签打印即将支持，暂无法测试；小票打印请把设备类型改为小票机";
     return;
   }
   try {
@@ -1547,8 +1763,8 @@ async function startScan() {
       } catch {
         // 已初始化过则忽略
       }
-      stopBle = await bleScanStart((d) => {
-        if (!bleDevices.value.some((x) => x.deviceId === d.deviceId)) {
+      stopBle = await bleScanStart(d => {
+        if (!bleDevices.value.some(x => x.deviceId === d.deviceId)) {
           bleDevices.value.push(d);
         }
       });
@@ -1556,12 +1772,16 @@ async function startScan() {
       // 传统蓝牙扫描（约 12 秒，结束后 resolve）
       // 单独 catch：权限被拒等错误只影响传统蓝牙一列，不打断 BLE 搜索
       try {
-        const found = await sppDiscover((d) => {
-          if (!sppDevices.value.some((x) => x.address === d.address)) {
+        const found = await sppDiscover(d => {
+          if (!sppDevices.value.some(x => x.address === d.address)) {
             sppDevices.value.push(d);
           }
         });
-        if (found.length === 0 && bleDevices.value.length === 0 && status.value === "") {
+        if (
+          found.length === 0 &&
+          bleDevices.value.length === 0 &&
+          status.value === ""
+        ) {
           statusOk.value = false;
           status.value = "未搜索到设备，请确认打印机已开机并进入配对/广播模式";
         }
@@ -1576,7 +1796,10 @@ async function startScan() {
       // 网页环境：Web Bluetooth 设备选择框（列出附近可见的 BLE 设备）
       try {
         const d = await webBluetoothPick();
-        if (d.deviceId && !bleDevices.value.some((x) => x.deviceId === d.deviceId)) {
+        if (
+          d.deviceId &&
+          !bleDevices.value.some(x => x.deviceId === d.deviceId)
+        ) {
           bleDevices.value.push(d);
         }
         statusOk.value = true;
@@ -1650,7 +1873,10 @@ const userTotal = ref(0);
 async function loadUsers(page = userPage.value) {
   usersLoading.value = true;
   try {
-    const params = new URLSearchParams({ page: String(page), page_size: String(userPageSize) });
+    const params = new URLSearchParams({
+      page: String(page),
+      page_size: String(userPageSize)
+    });
     const kw = userKeyword.value.trim();
     if (kw) params.set("keyword", kw);
     const d = await api(`/api/user/list?${params.toString()}`);
@@ -1665,7 +1891,10 @@ async function loadUsers(page = userPage.value) {
 }
 
 // 角色/状态更新：全量回传 {id, role, status}
-async function patchUser(u: UserItem, patch: Partial<Pick<UserItem, "role" | "status">>) {
+async function patchUser(
+  u: UserItem,
+  patch: Partial<Pick<UserItem, "role" | "status">>
+) {
   const body = { id: u.id, role: u.role, status: u.status, ...patch };
   await api("/api/user/update", { method: "POST", body });
   Object.assign(u, patch);
@@ -1808,7 +2037,9 @@ async function openUserDevices(u: UserItem) {
   userDevDlg.value = true;
   devLoading.value = true;
   try {
-    const d = await api(`/api/user/sessions?user_id=${encodeURIComponent(u.id)}`);
+    const d = await api(
+      `/api/user/sessions?user_id=${encodeURIComponent(u.id)}`
+    );
     devSessions.value = Array.isArray(d.list) ? d.list : [];
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
@@ -1963,7 +2194,7 @@ const aiPromptPreview = computed(() => {
 });
 
 // 切到用户管理 / AI 设置页签时懒加载数据
-watch(tab, (v) => {
+watch(tab, v => {
   if (v === "users") void loadUsers(1);
   else if (v === "ai") void loadAi();
 });
