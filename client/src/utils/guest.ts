@@ -2,10 +2,24 @@
 // 游客 token 以 guest_ 开头，服务端按前缀分流。未持有效身份的请求，业务接口一律不返回数据
 // （401 + need_guest）；登录后忽略并作废游客身份，也可调用 revokeGuestIdentity 主动注销。
 
+import { ref } from "vue";
+
 // 登录态存储键（与 admin 页共用）
 export const TOKEN_KEY = "lfdd_token";
 
 const GUEST_KEY = "lfdd_guest_token";
+
+// 登录态（响应式）：供底部导航等界面随登录/退出即时刷新
+export const loggedIn = ref(false);
+
+// 标记已登录 / 已退出（登录、退出、401 失效时调用）
+export function markLoggedIn() {
+  loggedIn.value = true;
+}
+
+export function markLoggedOut() {
+  loggedIn.value = false;
+}
 
 // 读取登录 token（空串表示未登录）
 export function getToken(): string {
@@ -20,6 +34,9 @@ export function getToken(): string {
 export function hasToken(): boolean {
   return getToken() !== "";
 }
+
+// 初始登录态：以本地 token 为准（refresh 时会再校正）
+loggedIn.value = hasToken();
 
 // 读取本地游客 token（空串表示还没申请）
 export function getGuestToken(): string {

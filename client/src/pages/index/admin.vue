@@ -1121,7 +1121,12 @@ import {
   type SavedPrinter
 } from "@/utils/printerStore";
 
-import { clearGuestIdentity, TOKEN_KEY } from "@/utils/guest";
+import {
+  clearGuestIdentity,
+  markLoggedIn,
+  markLoggedOut,
+  TOKEN_KEY
+} from "@/utils/guest";
 
 const $q = useQuasar();
 
@@ -1163,6 +1168,7 @@ function setToken(t: string) {
   localStorage.setItem(TOKEN_KEY, t);
   // 登录后忽略并清掉游客身份（后端登录时已作废该身份）
   clearGuestIdentity();
+  markLoggedIn();
 }
 
 // 统一请求：自动带 Bearer token，401 时清理登录态
@@ -1183,6 +1189,7 @@ async function api(
   if (res.status === 401) {
     token.value = "";
     localStorage.removeItem(TOKEN_KEY);
+    markLoggedOut();
     throw new Error("登录已过期，请重新登录");
   }
 
@@ -1227,6 +1234,7 @@ async function logout() {
   }
   token.value = "";
   localStorage.removeItem(TOKEN_KEY);
+  markLoggedOut();
   menus.value = [];
   goodsList.value = [];
   isAdmin.value = false;
@@ -1379,6 +1387,7 @@ async function uploadGoodsImage(f: unknown) {
     if (res.status === 401) {
       token.value = "";
       localStorage.removeItem(TOKEN_KEY);
+      markLoggedOut();
       throw new Error("登录已过期，请重新登录");
     }
     const data = await res.json().catch(() => ({}));
