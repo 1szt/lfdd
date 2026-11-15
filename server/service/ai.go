@@ -54,7 +54,7 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 	if utf8.RuneCountInString(text) > matchTextMaxRunes {
 		return o, fmt.Errorf("点单内容不能超过 %d 个字", matchTextMaxRunes)
 	}
-	apiKey := getCfg(CfgAiAPIKey, "LFDD_AI_API_KEY", "")
+	apiKey := getCfg(CfgAiAPIKey, "")
 	if apiKey == "" {
 		return o, errors.New("未配置大模型：请到管理页「AI 设置」填写 API Key")
 	}
@@ -69,7 +69,7 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 	}
 
 	// 2. 调大模型（OpenAI 兼容 /chat/completions）：系统提示词 DB 优先，未配置用内置默认
-	system := getCfg(CfgAiSystemPrompt, "", DefaultAiSystemPrompt)
+	system := getCfg(CfgAiSystemPrompt, DefaultAiSystemPrompt)
 	user := fmt.Sprintf("商品列表：\n%s\n用户点单：%s", list, text)
 
 	completion, err := chatCompletion(ChatCompletionInput{
@@ -159,8 +159,8 @@ type ChatCompletionOutput struct {
 // chatCompletion 调 OpenAI 兼容的 chat/completions（地址/模型走配置），返回首个 choice 的 content
 func chatCompletion(i ChatCompletionInput) (o ChatCompletionOutput, err error) {
 	ext, err := chatCompletionExt(ChatCompletionExtInput{
-		BaseURL: getCfg(CfgAiBaseURL, "LFDD_AI_BASE_URL", DefaultAiBaseURL),
-		Model:   getCfg(CfgAiModel, "LFDD_AI_MODEL", "deepseek-chat"),
+		BaseURL: getCfg(CfgAiBaseURL, DefaultAiBaseURL),
+		Model:   getCfg(CfgAiModel, "deepseek-chat"),
 		APIKey:  i.APIKey,
 		System:  i.System,
 		User:    i.User,
@@ -202,9 +202,9 @@ func chatCompletionExt(i ChatCompletionExtInput) (o ChatCompletionExtOutput, err
 	// 思考模式开关：thinking.type = enabled/disabled（OpenAI 兼容端点通用写法，
 	// 如 DeepSeek/豆包/通义等。不支持思考的模型/端点会忽略该字段）
 	thinkingType := "disabled"
-	if getCfg(CfgAiThinking, "", "0") == "1" {
+	if getCfg(CfgAiThinking, "0") == "1" {
 		thinkingType = "enabled"
-		reqBody["reasoning_effort"] = getCfg(CfgAiReasoningEffort, "", "medium")
+		reqBody["reasoning_effort"] = getCfg(CfgAiReasoningEffort, "medium")
 	}
 	reqBody["thinking"] = map[string]string{"type": thinkingType}
 	body, _ := json.Marshal(reqBody)

@@ -7,12 +7,10 @@ import (
 
 	"server/core/db"
 	"server/model"
-
-	"github.com/1szt/go-pkg/env"
 )
 
 // ------------------------ 系统配置（sys_config 表，key-value） ------------------------
-// 读取顺序：数据库（管理页保存的值）→ data/.env（旧配置兼容）→ 内置默认值。
+// AI 配置只存数据库（管理页维护），data/.env 仅用于不落库的启动配置。
 
 // 配置键
 const (
@@ -31,20 +29,15 @@ const DefaultAiSystemPrompt = "你是购物匹配助手。根据用户描述从�
 	"id 必须来自商品列表，qty 为 1-200 的整数；没有匹配的商品时输出 []。" +
 	"不要输出任何其他文字、解释或代码块标记。"
 
-// DefaultAiBaseURL 内置接口地址（兼容旧 data/.env 配置）
+// DefaultAiBaseURL 内置接口地址（数据库未配置时使用）
 const DefaultAiBaseURL = "https://api.deepseek.com/v1"
 
-// getCfg 读取配置：数据库优先 → env 兜底 → 内置默认
-func getCfg(key, envKey, def string) string {
+// getCfg 读取配置：数据库优先 → 内置默认
+func getCfg(key, def string) string {
 	if db.DB != nil {
 		var c model.SysConfig
 		if err := db.DB.First(&c, "key = ?", key).Error; err == nil && strings.TrimSpace(c.Value) != "" {
 			return strings.TrimSpace(c.Value)
-		}
-	}
-	if envKey != "" {
-		if v := strings.TrimSpace(env.Get(envKey)); v != "" {
-			return v
 		}
 	}
 	return def
@@ -75,14 +68,14 @@ type GetAiSettingsOutput struct {
 	UserPromptTemplate string `json:"user_prompt_template"`
 }
 
-// GetAiSettings 读取 AI 配置（DB 优先，env/内置默认兜底），供管理页展示编辑
+// GetAiSettings 读取 AI 配置（仅数据库，未配置时用内置默认），供管理页展示编辑
 func GetAiSettings(i GetAiSettingsInput) (o GetAiSettingsOutput, err error) {
-	o.BaseURL = getCfg(CfgAiBaseURL, "LFDD_AI_BASE_URL", DefaultAiBaseURL)
-	o.APIKey = getCfg(CfgAiAPIKey, "LFDD_AI_API_KEY", "")
-	o.Model = getCfg(CfgAiModel, "LFDD_AI_MODEL", "deepseek-chat")
-	o.SystemPrompt = getCfg(CfgAiSystemPrompt, "", DefaultAiSystemPrompt)
-	o.Thinking = getCfg(CfgAiThinking, "", "0") == "1"
-	o.ReasoningEffort = getCfg(CfgAiReasoningEffort, "", "medium")
+	o.BaseURL = getCfg(CfgAiBaseURL, DefaultAiBaseURL)
+	o.APIKey = getCfg(CfgAiAPIKey, "")
+	o.Model = getCfg(CfgAiModel, "deepseek-chat")
+	o.SystemPrompt = getCfg(CfgAiSystemPrompt, DefaultAiSystemPrompt)
+	o.Thinking = getCfg(CfgAiThinking, "0") == "1"
+	o.ReasoningEffort = getCfg(CfgAiReasoningEffort, "medium")
 
 	// 拼真实 user 消息模板：与 MatchGoods 的 fmt.Sprintf 结构完全一致
 	list, _, err := buildMatchGoodsList()
@@ -173,15 +166,15 @@ type TestAiOutput struct {
 func TestAi(i TestAiInput) (o TestAiOutput, err error) {
 	baseURL := strings.TrimSpace(i.BaseURL)
 	if baseURL == "" {
-		baseURL = getCfg(CfgAiBaseURL, "LFDD_AI_BASE_URL", DefaultAiBaseURL)
+		baseURL = getCfg(CfgAiBaseURL, DefaultAiBaseURL)
 	}
 	modelName := strings.TrimSpace(i.Model)
 	if modelName == "" {
-		modelName = getCfg(CfgAiModel, "LFDD_AI_MODEL", "deepseek-chat")
+		modelName = getCfg(CfgAiModel, "deepseek-chat")
 	}
 	apiKey := strings.TrimSpace(i.APIKey)
 	if apiKey == "" {
-		apiKey = getCfg(CfgAiAPIKey, "LFDD_AI_API_KEY", "")
+		apiKey = getCfg(CfgAiAPIKey, "")
 	}
 	if apiKey == "" {
 		return o, errors.New("未配置 API Key")

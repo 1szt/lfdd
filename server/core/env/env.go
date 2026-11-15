@@ -34,9 +34,5 @@ func Start() {
 
 	env.Add("LFDD_UPLOAD_PATH", "data/upload", "图片上传存储目录")
 
-	env.Add("LFDD_AI_BASE_URL", "", "大模型 API 地址（OpenAI 兼容，空则用 https://api.deepseek.com/v1）")
-	env.Add("LFDD_AI_API_KEY", "", "大模型 API Key（空则禁用 AI 点单匹配）")
-	env.Add("LFDD_AI_MODEL", "", "大模型名称（空则用 deepseek-chat）")
-
 	log.Println("✅ [Env] 配置文件 初始化完成")
 }
