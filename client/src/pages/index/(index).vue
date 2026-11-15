@@ -490,7 +490,8 @@ onBeforeUnmount(() => {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
-  padding: 8px 12px;
+  /* 顶部不留内边距：吸顶栏直接贴住滚动区顶部，避免滚动时上方露出内容 */
+  padding: 0 12px 8px;
 }
 
 .error-bar {
@@ -554,8 +555,8 @@ onBeforeUnmount(() => {
   position: sticky;
   top: 0;
   z-index: 6;
-  /* 抵消 .goods-main 内边距，吸顶时铺满整宽并盖住滚动内容 */
-  margin: -8px -12px 0;
+  /* 左右抵消 .goods-main 内边距，吸顶时铺满整宽并盖住滚动内容 */
+  margin: 0 -12px;
   padding: 8px 12px 4px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
