@@ -1,0 +1,57 @@
+name: Web Build
+
+# 构建可直接部署到服务器的网页（SPA）。
+# 产物 lfdd-web.zip 解压后即为站点根目录内容（index.html 在根）。
+# 后端地址通过 Variables 注入：
+#   LFDD_API_BASE  后端地址，如 https://api.example.com（同域可留空）
+on:
+  workflow_dispatch:
+    inputs:
+      api_base:
+        description: 后端地址（留空则使用仓库变量 LFDD_API_BASE）
+        required: false
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: client/pnpm-lock.yaml
+
+      - name: 安装前端依赖
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: 写入构建环境变量
+        working-directory: client
+        env:
+          API_BASE: ${{ inputs.api_base || vars.LFDD_API_BASE }}
+        run: |
+          echo "VITE_API_BASE=$API_BASE" > .env
+          cat .env
+
+      - name: 构建网页
+        working-directory: client
+        run: pnpm quasar build -m spa
+
+      - name: 打包站点文件
+        working-directory: client/dist/spa
+        run: zip -r "$RUNNER_TEMP/lfdd-web.zip" .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfdd-web
+          path: ${{ runner.temp }}/lfdd-web.zip
+          if-no-files-found: error
