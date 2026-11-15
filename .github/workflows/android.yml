@@ -87,10 +87,11 @@ jobs:
             echo "::warning::未配置 ANDROID_KEYSTORE_BASE64，将使用 debug 签名（不能上架/覆盖安装）"
           fi
 
-      # Quasar 的 capacitor 模式会构建资源到 src-capacitor/www 并自动执行 cap sync android
+      # --skip-pkg：只构建资源并执行 cap sync，APK 打包交给下一步
+      # （Quasar 自带的 gradle 调用不会带上签名环境变量，失败时也没有堆栈）
       - name: 构建前端并同步 Android 工程
         working-directory: client
-        run: pnpm quasar build -m capacitor -T android
+        run: pnpm quasar build -m capacitor -T android --skip-pkg
 
       - name: 打包 Release APK
         working-directory: client/src-capacitor/android
