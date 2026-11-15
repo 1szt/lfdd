@@ -109,14 +109,38 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 
 	o.List = make([]GoodsView, 0, len(goods))
 	for _, g := range goods {
-		o.List = append(o.List, GoodsView{
-			ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
-			Spec: g.Spec, Stock: g.Stock, Image: g.Image, Sort: g.Sort, Status: g.Status,
-		})
+		o.List = append(o.List, toGoodsView(g))
 	}
 	o.Page = i.Page
 	o.PageSize = i.PageSize
 	return o, nil
+}
+
+// ------------------------ GetGoodsAll 全部上架商品 ------------------------
+type GetGoodsAllInput struct{}
+type GetGoodsAllOutput struct {
+	List []GoodsView `json:"list"`
+}
+
+// GetGoodsAll 全部上架商品：供前端一次性拉取后本地模糊搜索（数据量小，避免逐页拉取）
+func GetGoodsAll(i GetGoodsAllInput) (o GetGoodsAllOutput, err error) {
+	var goods []model.Goods
+	if err = db.DB.Where("status = ?", 1).Order("sort ASC, id DESC").Find(&goods).Error; err != nil {
+		return o, err
+	}
+	o.List = make([]GoodsView, 0, len(goods))
+	for _, g := range goods {
+		o.List = append(o.List, toGoodsView(g))
+	}
+	return o, nil
+}
+
+// toGoodsView 模型转视图，集中一处避免各接口字段遗漏
+func toGoodsView(g model.Goods) GoodsView {
+	return GoodsView{
+		ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
+		Spec: g.Spec, Stock: g.Stock, Image: g.Image, Sort: g.Sort, Status: g.Status,
+	}
 }
 
 // ------------------------ CreateGoods 新建商品 ------------------------

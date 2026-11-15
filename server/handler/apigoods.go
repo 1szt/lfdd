@@ -55,6 +55,19 @@ func (h *ApiGoodsHandler) Page(c *gin.Context) {
 	c.JSON(200, out)
 }
 
+// All 全部上架商品（前端一次性拉取后本地模糊搜索）
+func (h *ApiGoodsHandler) All(c *gin.Context) {
+	out, err := service.GetGoodsAll(service.GetGoodsAllInput{})
+	if err != nil {
+		c.JSON(500, gin.H{
+			"message": "服务器内部错误",
+		})
+		return
+	}
+
+	c.JSON(200, out)
+}
+
 // Create 新建商品（挂到指定菜单下）
 // body: {"menu_id":"101","name":"杨枝甘露","price":1850,"spec":"","stock":-1,"image":"","status":1,"sort":0}
 // price 单位：分（1850 = 18.50 元）

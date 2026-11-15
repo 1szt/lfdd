@@ -25,6 +25,7 @@
   "dependencies": {
     "@quasar/extras": "^2.1.0",
     "pinia": "^4.0.2",
+    "pinyin-pro": "^3.29.5",
     "quasar": "^2.35.3",
     "str2gbk": "^0.0.5",
     "vue": "^3.5.22",

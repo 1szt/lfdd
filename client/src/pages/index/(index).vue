@@ -28,41 +28,63 @@
 
       <!-- 右侧商品列表 -->
       <div ref="mainRef" class="goods-main">
-        <!-- AI 点单：自然语言描述 → 大模型匹配商品 → 自动加入购物车 -->
-        <div class="ai-bar row items-center q-gutter-sm">
+        <!-- 吸顶：本地模糊搜索（名称/别名/规格，支持拼音与容错）+ AI 点单 -->
+        <div class="goods-topbar">
           <q-input
-            v-model="aiText"
+            v-model="searchText"
             outlined
             dense
-            class="col"
-            placeholder="AI 点单：如「两杯柠檬水和一个冰淇淋」"
-            :disable="aiLoading"
-            @keyup.enter="aiMatch"
+            clearable
+            class="search-input"
+            placeholder="搜索商品：名称/别名/拼音，如 nmh"
+            :loading="searchLoading"
           >
             <template #prepend>
-              <q-icon name="auto_awesome" color="primary" />
+              <q-icon name="search" color="grey-7" />
             </template>
           </q-input>
-          <q-btn
-            color="primary"
-            label="点单"
-            unelevated
-            :loading="aiLoading"
-            @click="aiMatch"
-          />
+
+          <!-- AI 点单：自然语言描述 → 大模型匹配商品 → 自动加入购物车 -->
+          <div class="ai-bar row items-center q-gutter-sm">
+            <q-input
+              v-model="aiText"
+              outlined
+              dense
+              class="col"
+              placeholder="AI 点单：如「两杯柠檬水和一个冰淇淋」"
+              :disable="aiLoading"
+              @keyup.enter="aiMatch"
+            >
+              <template #prepend>
+                <q-icon name="auto_awesome" color="primary" />
+              </template>
+            </q-input>
+            <q-btn
+              color="primary"
+              label="点单"
+              unelevated
+              :loading="aiLoading"
+              @click="aiMatch"
+            />
+          </div>
+        </div>
+
+        <div v-if="searchMode" class="search-hint text-caption text-grey-7">
+          搜索「{{ searchText?.trim() }}」
+          {{ searchLoading ? "加载中…" : `找到 ${displayGoods.length} 个商品` }}
         </div>
 
         <div v-if="errorMsg" class="error-bar text-negative text-caption">
           {{ errorMsg }}
         </div>
 
-        <div v-if="loadingGoods" class="state-box text-grey-6">加载中…</div>
-        <div v-else-if="goods.length === 0 && !errorMsg" class="state-box text-grey-6">
-          暂无商品
+        <div v-if="loadingGoods || searchLoading" class="state-box text-grey-6">加载中…</div>
+        <div v-else-if="displayGoods.length === 0 && !errorMsg" class="state-box text-grey-6">
+          {{ searchMode ? "没有匹配的商品，换个关键词试试" : "暂无商品" }}
         </div>
 
         <template v-else>
-          <div v-for="g in goods" :key="g.id" class="goods-card">
+          <div v-for="g in displayGoods" :key="g.id" class="goods-card">
             <div class="goods-img">
               <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
               <q-icon v-else name="shopping_bag" size="32px" color="grey-5" />
@@ -118,7 +140,7 @@
 
           <div class="text-center q-pb-md">
             <q-btn
-              v-if="hasMore"
+              v-if="!searchMode && hasMore"
               flat
               dense
               color="primary"
@@ -126,7 +148,7 @@
               label="加载更多"
               @click="loadGoods(false)"
             />
-            <span v-else class="text-caption text-grey-6">— 没有更多了 —</span>
+            <span v-else-if="!searchMode" class="text-caption text-grey-6">— 没有更多了 —</span>
           </div>
         </template>
       </div>
@@ -161,9 +183,10 @@ const pagePos = {
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
+import { searchGoods } from "../../utils/search";
 import {
   cartCount,
   cartTotal,
@@ -186,6 +209,7 @@ interface GoodsItem {
   id: string;
   menu_id: string;
   name: string;
+  alias?: string; // 别名（多个用逗号分隔），本地搜索时与名称一起匹配
   price: number; // 单位：分（1850 = 18.50 元）
   spec: string;
   stock: number; // -1 = 不限库存，0 = 售罄
@@ -210,6 +234,47 @@ const mainRef = ref<HTMLElement | null>(null);
 let reqSeq = 0; // 递增序号，丢弃切换分类时已过期的响应
 
 const hasMore = computed(() => goods.value.length < total.value);
+
+// ================= 本地模糊搜索（一次性拉全量上架商品，输入即时过滤） =================
+// q-input 的 clearable 清空时会把值置为 null，这里兼容 null
+const searchText = ref<string | null>("");
+const searchLoading = ref(false);
+const allGoods = ref<GoodsItem[]>([]);
+const allLoaded = ref(false);
+
+const searchMode = computed(() => (searchText.value ?? "").trim() !== "");
+const displayGoods = computed(() =>
+  searchMode.value ? searchGoods(allGoods.value, searchText.value ?? "") : goods.value
+);
+
+// 全量上架商品只拉一次；搜索时自动切到「全部」分类，实现跨分类检索
+async function loadAllGoods() {
+  if (allLoaded.value || searchLoading.value) return;
+  searchLoading.value = true;
+  try {
+    const data = await fetchJson("/api/goods/all");
+    allGoods.value = Array.isArray(data.list) ? data.list : [];
+    allLoaded.value = true;
+  } catch (e) {
+    $q.notify({ message: `搜索数据加载失败：${describeError(e)}`, color: "negative" });
+  } finally {
+    searchLoading.value = false;
+  }
+}
+
+// 输入关键词进入搜索态；清空后恢复当前分类的分页列表
+watch(searchText, async (v) => {
+  if ((v ?? "").trim()) {
+    if (activeMenuId.value !== "0") {
+      activeMenuId.value = "0";
+      pagePos.activeMenuId = "0";
+    }
+    if (mainRef.value) mainRef.value.scrollTop = 0;
+    await loadAllGoods();
+  } else {
+    await loadGoods(true);
+  }
+});
 
 // QPage styleFn：header/footer 占位后剩余高度，让页面撑满且两栏各自滚动
 function pageStyle(offset: number, height: number) {
@@ -348,7 +413,11 @@ async function loadGoods(reset: boolean) {
 function selectMenu(id: string) {
   activeMenuId.value = id;
   pagePos.activeMenuId = id;
-  void loadGoods(true);
+  if (searchText.value) {
+    searchText.value = ""; // 退出搜索态，watch 会按新分类重新加载
+  } else {
+    void loadGoods(true);
+  }
   // 切分类后商品区回到顶部
   if (mainRef.value) mainRef.value.scrollTop = 0;
 }
@@ -480,9 +549,29 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 
+/* 吸顶顶部栏：模糊搜索 + AI 点单 */
+.goods-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 6;
+  /* 抵消 .goods-main 内边距，吸顶时铺满整宽并盖住滚动内容 */
+  margin: -8px -12px 0;
+  padding: 8px 12px 4px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.search-input {
+  margin-bottom: 8px;
+}
+
 /* AI 点单输入条 */
 .ai-bar {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+.search-hint {
+  padding: 6px 0 2px;
 }
 
 /* 加减按钮组（大号，触屏好点） */

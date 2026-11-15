@@ -15,6 +15,7 @@ func apiGoodsRouter() {
 	// 商品页（免登录）
 	group.GET("/sidebar", middleware.OptionalGuard(), apiGoodsHandler.Sidebar)
 	group.GET("/page", middleware.OptionalGuard(), apiGoodsHandler.Page)
+	group.GET("/all", middleware.OptionalGuard(), apiGoodsHandler.All)
 
 	// 商品管理（仅管理员：RoleGuard）
 	group.POST("/create", middleware.RoleGuard(), apiGoodsHandler.Create)
