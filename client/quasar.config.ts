@@ -31,8 +31,7 @@ export default defineConfig(ctx => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
-      // 客户端只暴露 VITE_ 前缀的环境变量（.env / CI 注入）；
-      // 其余变量（如 LFDD_APP_SERVER_URL）仅在 Node 侧生效，供 capacitor.config.ts 读取
+      // 客户端只暴露 VITE_ 前缀的环境变量（.env / CI 注入）
       env: {
         clientPrefix: "VITE_"
       },
