@@ -29,14 +29,6 @@ export default defineConfig(ctx => {
       "material-icons" // optional, you are not bound to it
     ],
 
-    // https://v2.quasar.dev/quasar-cli-vite/build-process#html-template
-    // index.html 里用于放行后端地址（CSP 的 connect-src / img-src）
-    htmlVariables: {
-      apiBase: String(process.env.VITE_API_BASE ?? "")
-        .trim()
-        .replace(/\/+$/, "")
-    },
-
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
       // 客户端只暴露 VITE_ 前缀的环境变量（.env / CI 注入）
