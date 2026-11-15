@@ -29,6 +29,14 @@ export default defineConfig(ctx => {
       "material-icons" // optional, you are not bound to it
     ],
 
+    // https://v2.quasar.dev/quasar-cli-vite/build-process#html-template
+    // index.html 里用于放行后端地址（CSP 的 connect-src / img-src）
+    htmlVariables: {
+      apiBase: String(process.env.VITE_API_BASE ?? "")
+        .trim()
+        .replace(/\/+$/, "")
+    },
+
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
       // 客户端只暴露 VITE_ 前缀的环境变量（.env / CI 注入）
@@ -92,13 +100,11 @@ export default defineConfig(ctx => {
       // vueDevtools: true,
       // https: true,
       open: true, // opens browser window automatically
-      // 服务端无 CORS 中间件，开发时将 /api 代理到后端（自签证书需 secure: false）
+      // 开发时将 /api（含图片 /api/upload/{hash}）代理到本地后端，避免跨域
       proxy: {
-        // API + 图片直出（/api/upload/{hash}）统一代理到后端（自签证书需 secure: false）
         "/api": {
-          target: "https://localhost:9081",
-          changeOrigin: true,
-          secure: false
+          target: "http://127.0.0.1:34334",
+          changeOrigin: true
         }
       }
     },
