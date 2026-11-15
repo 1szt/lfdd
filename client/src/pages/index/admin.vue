@@ -647,7 +647,7 @@
                   dense
                   placeholder="deepseek-chat"
                 />
-                <!-- 思考模式：开启时请求附带 reasoning_effort -->
+                <!-- 思考模式：请求以 thinking.type = enabled/disabled 控制深度思考 -->
                 <div class="row items-center q-gutter-sm q-pt-xs">
                   <q-toggle
                     v-model="aiForm.thinking"
@@ -667,7 +667,7 @@
                     style="min-width: 150px"
                   />
                   <span class="text-caption text-grey-7">
-                    开启时请求带 reasoning_effort；不支持思考的模型会忽略该参数
+                    开启时请求带 thinking.type=enabled 与 reasoning_effort；关闭时为 disabled
                   </span>
                 </div>
                 <div class="row q-gutter-sm">

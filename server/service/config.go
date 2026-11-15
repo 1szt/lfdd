@@ -65,7 +65,7 @@ type GetAiSettingsOutput struct {
 	APIKey       string `json:"api_key"`
 	Model        string `json:"model"`
 	SystemPrompt string `json:"system_prompt"`
-	// Thinking 思考模式开关：开启时请求附带 reasoning_effort 参数
+	// Thinking 思考模式开关：请求以 thinking.type = enabled/disabled 控制深度思考
 	Thinking bool `json:"thinking"`
 	// ReasoningEffort 思考强度：low / medium / high
 	ReasoningEffort string `json:"reasoning_effort"`

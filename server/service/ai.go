@@ -196,11 +196,14 @@ func chatCompletionExt(i ChatCompletionExtInput) (o ChatCompletionExtOutput, err
 			{"role": "user", "content": i.User},
 		},
 	}
-	// 思考模式开启时附带 reasoning_effort（OpenAI 兼容端点通用参数；
-	// 不支持思考的模型/端点会忽略该字段，若报错则在管理页关闭思考模式）
+	// 思考模式开关：thinking.type = enabled/disabled（OpenAI 兼容端点通用写法，
+	// 如 DeepSeek/豆包/通义等。不支持思考的模型/端点会忽略该字段）
+	thinkingType := "disabled"
 	if getCfg(CfgAiThinking, "", "0") == "1" {
+		thinkingType = "enabled"
 		reqBody["reasoning_effort"] = getCfg(CfgAiReasoningEffort, "", "medium")
 	}
+	reqBody["thinking"] = map[string]string{"type": thinkingType}
 	body, _ := json.Marshal(reqBody)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
