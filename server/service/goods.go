@@ -6,6 +6,7 @@ import (
 	"server/core/db"
 	"server/model"
 	"strconv"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -45,6 +46,7 @@ type GoodsView struct {
 	ID     int64  `json:"id,string"`
 	MenuID int64  `json:"menu_id,string"`
 	Name   string `json:"name"`
+	Alias  string `json:"alias"` // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
 	Price  int    `json:"price"`
 	Spec   string `json:"spec"`
 	Stock  int    `json:"stock"`
@@ -108,7 +110,7 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 	o.List = make([]GoodsView, 0, len(goods))
 	for _, g := range goods {
 		o.List = append(o.List, GoodsView{
-			ID: g.ID, MenuID: g.MenuID, Name: g.Name, Price: g.Price,
+			ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
 			Spec: g.Spec, Stock: g.Stock, Image: g.Image, Sort: g.Sort, Status: g.Status,
 		})
 	}
@@ -121,6 +123,7 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 type CreateGoodsInput struct {
 	MenuID int64  `json:"menu_id,string"`
 	Name   string `json:"name"`
+	Alias  string `json:"alias"` // 别名（多个用逗号分隔），可空
 	Price  int    `json:"price"` // 单位：分
 	Spec   string `json:"spec"`
 	Stock  int    `json:"stock"` // -1 表示不限库存
@@ -148,7 +151,7 @@ func CreateGoods(i CreateGoodsInput) (o CreateGoodsOutput, err error) {
 	}
 
 	g := model.Goods{
-		MenuID: i.MenuID, Name: i.Name, Price: i.Price, Spec: i.Spec,
+		MenuID: i.MenuID, Name: i.Name, Alias: normalizeAlias(i.Alias), Price: i.Price, Spec: i.Spec,
 		Stock: i.Stock, Image: i.Image, Status: i.Status, Sort: i.Sort,
 	}
 	if err = db.DB.Create(&g).Error; err != nil {
@@ -164,6 +167,7 @@ type UpdateGoodsInput struct {
 	ID     int64  `json:"id,string"`
 	MenuID int64  `json:"menu_id,string"` // 可改所属菜单（移动分类）
 	Name   string `json:"name"`
+	Alias  string `json:"alias"` // 别名（多个用逗号分隔），可空
 	Price  int    `json:"price"` // 单位：分
 	Spec   string `json:"spec"`
 	Stock  int    `json:"stock"`
@@ -193,6 +197,7 @@ func UpdateGoods(i UpdateGoodsInput) (o UpdateGoodsOutput, err error) {
 	res := db.DB.Model(&model.Goods{}).Where("id = ?", i.ID).Updates(map[string]interface{}{
 		"menu_id": i.MenuID,
 		"name":    i.Name,
+		"alias":   normalizeAlias(i.Alias),
 		"price":   i.Price,
 		"spec":    i.Spec,
 		"stock":   i.Stock,
@@ -273,4 +278,21 @@ func checkMenuExists(i CheckMenuExistsInput) (o CheckMenuExistsOutput, err error
 		return o, errors.New("所属菜单不存在")
 	}
 	return o, nil
+}
+
+// normalizeAlias 归一化别名：中文逗号转英文逗号，按逗号分段去空白、去重后重新拼接
+func normalizeAlias(s string) string {
+	s = strings.ReplaceAll(s, "，", ",")
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	seen := make(map[string]bool, len(parts))
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" || seen[p] {
+			continue
+		}
+		seen[p] = true
+		out = append(out, p)
+	}
+	return strings.Join(out, ",")
 }

@@ -114,7 +114,7 @@ func MatchGoods(i MatchGoodsInput) (o MatchGoodsOutput, err error) {
 		g := byID[id]
 		o.List = append(o.List, MatchedGoods{
 			GoodsView: GoodsView{
-				ID: g.ID, MenuID: g.MenuID, Name: g.Name, Price: g.Price,
+				ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
 				Spec: g.Spec, Stock: g.Stock, Image: g.Image, Sort: g.Sort, Status: g.Status,
 			},
 			Qty: merged[id],
@@ -135,6 +135,9 @@ func buildMatchGoodsList() (list string, byID map[int64]model.Goods, err error) 
 	var sb strings.Builder
 	for _, g := range goods {
 		line := fmt.Sprintf("- id=%d 名称=%s", g.ID, g.Name)
+		if g.Alias != "" {
+			line += " 别名=" + g.Alias
+		}
 		if g.Spec != "" {
 			line += " 规格=" + g.Spec
 		}

@@ -141,6 +141,7 @@
                 <q-item-label caption>
                   {{ menuName(g.menu_id) }}
                   <span v-if="g.spec"> · {{ g.spec }}</span>
+                  <span v-if="g.alias"> · 别名：{{ g.alias }}</span>
                   · 库存 {{ g.stock === -1 ? "不限" : g.stock }}
                 </q-item-label>
               </q-item-section>
@@ -817,6 +818,13 @@
             />
             <q-input v-model="goodsForm.name" label="名称" outlined dense autofocus />
             <q-input
+              v-model="goodsForm.alias"
+              label="别名（多个用逗号分隔，可空）"
+              outlined
+              dense
+              hint="AI 点单匹配时名称与别名都会识别"
+            />
+            <q-input
               v-model="goodsForm.priceYuan"
               label="价格（元）"
               type="number"
@@ -945,6 +953,7 @@ interface AdminGoods {
   id: string;
   menu_id: string;
   name: string;
+  alias: string; // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
   price: number; // 分
   spec: string;
   stock: number;
@@ -1136,6 +1145,7 @@ const goodsForm = reactive({
   id: "",
   menu_id: "",
   name: "",
+  alias: "",
   priceYuan: "0",
   spec: "",
   stock: "-1",
@@ -1241,6 +1251,7 @@ function openGoods(g?: AdminGoods) {
     goodsForm.id = g.id;
     goodsForm.menu_id = g.menu_id;
     goodsForm.name = g.name;
+    goodsForm.alias = g.alias || "";
     goodsForm.priceYuan = (g.price / 100).toFixed(2);
     goodsForm.spec = g.spec;
     goodsForm.stock = String(g.stock);
@@ -1251,6 +1262,7 @@ function openGoods(g?: AdminGoods) {
     goodsForm.id = "";
     goodsForm.menu_id = filterMenu.value !== "0" ? filterMenu.value : menus.value[0]!.id;
     goodsForm.name = "";
+    goodsForm.alias = "";
     goodsForm.priceYuan = "0";
     goodsForm.spec = "";
     goodsForm.stock = "-1";
@@ -1289,6 +1301,7 @@ async function saveGoods() {
     const body = {
       menu_id: goodsForm.menu_id,
       name,
+      alias: goodsForm.alias.trim(),
       price,
       spec: goodsForm.spec.trim(),
       stock,
@@ -1319,6 +1332,7 @@ async function toggleStatus(g: AdminGoods, on: boolean) {
         id: g.id,
         menu_id: g.menu_id,
         name: g.name,
+        alias: g.alias,
         price: g.price,
         spec: g.spec,
         stock: g.stock,
