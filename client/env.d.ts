@@ -1,15 +1,12 @@
 /**
- * Add types (that are not auto-magically added by Quasar CLI already)
- * for your custom variables to avoid TypeScript errors, like dynamic
- * process.env variables or definitions in dotenv files configured ONLY
- * for the /quasar.config file itself.
- *
- * https://quasar.dev/quasar-cli-vite/handling-import-meta-env#type-inference
- *
- * @example
- * interface ImportMetaEnv {
- *   readonly MY_VAR: string;
- *   readonly MY_OTHER_VAR: string;
- * }
+ * 自定义环境变量类型声明（Quasar CLI 会自动生成标准变量，这里只声明项目自定义项）。
+ * 变量值来自构建时的 .env 文件 / CI 环境变量。
  */
-interface ImportMetaEnv {}
+interface ImportMetaEnv {
+  // 后端地址：如 https://api.example.com；留空表示前后端同源（走反向代理）
+  readonly VITE_API_BASE?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

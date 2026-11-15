@@ -1080,6 +1080,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from "vue";
 import { useQuasar } from "quasar";
+import { apiPath } from "@/utils/api";
 import {
   bleInit,
   blePrintTo,
@@ -1343,8 +1344,9 @@ const imgUploading = ref(false);
 // image 字段只存哈希，展示时拼成 /api/upload/{hash}（兼容旧数据里的完整 URL/路径）
 function imgSrc(v: string): string {
   if (!v) return "";
-  if (v.startsWith("/") || /^https?:\/\//.test(v)) return v;
-  return `/api/upload/${v}`;
+  if (/^https?:\/\//.test(v)) return v;
+  if (v.startsWith("/")) return apiPath(v);
+  return apiPath(`/api/upload/${v}`);
 }
 
 async function uploadGoodsImage(f: unknown) {

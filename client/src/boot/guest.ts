@@ -1,4 +1,5 @@
 import { defineBoot } from "#q-app";
+import { apiPath } from "@/utils/api";
 import {
   activeToken,
   ensureGuestIdentity,
@@ -38,12 +39,15 @@ function patchFetch() {
           : String(input);
     if (!url.includes("/api/")) return rawFetch(input, init);
 
+    // 前后端分离部署时把 /api 相对路径改写到 VITE_API_BASE（同源部署时 apiPath 原样返回）
+    const target = typeof input === "string" ? apiPath(input) : input;
+
     const send = () => {
       const headers = new Headers(init.headers);
       const token = activeToken();
       if (token && !headers.has("Authorization"))
         headers.set("Authorization", `Bearer ${token}`);
-      return rawFetch(input, { ...init, headers });
+      return rawFetch(target, { ...init, headers });
     };
 
     let res = await send();
