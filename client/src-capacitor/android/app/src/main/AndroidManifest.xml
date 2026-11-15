@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme">
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
+            android:name=".MainActivity"
+            android:label="@string/title_activity_main"
+            android:theme="@style/AppTheme.NoActionBarLaunch"
+            android:launchMode="singleTask"
+            android:exported="true">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths"></meta-data>
+        </provider>
+    </application>
+
+    <!-- Permissions -->
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 经典蓝牙（SPP）：SPP 的 RFCOMM connect 等调用在 Android 12+ 仍强制校验 legacy BLUETOOTH
+         权限（logcat: lacks permission android.permission.BLUETOOTH → 闪退）。
+         bluetooth-le 插件的 manifest 给这两个权限带了 maxSdkVersion=30，会合并进来，
+         这里用 tools:remove 剥掉；二者是 normal 级，安装时自动授予，不弹授权框 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        tools:remove="android:maxSdkVersion" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        tools:remove="android:maxSdkVersion" />
+    <!-- 传统蓝牙扫描（discoverUnpaired）插件硬性要求位置权限，全版本声明 -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="30" />
+    <!-- Android 12+：附近设备权限（SPP 与 BLE 共用），声明不用于定位 -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+</manifest>

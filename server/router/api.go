@@ -1,8 +1,8 @@
 package router
 
 import (
-	"hxzl/core/web"
-	"hxzl/handler"
+	"server/core/web"
+	"server/handler"
 )
 
 // api API 根路径探活

@@ -1,0 +1,124 @@
+name: Android APK
+
+# 手动触发或打 tag 时构建安卓 APK。
+# 后端地址与签名均可通过 GitHub 仓库配置注入，无需改代码：
+#   Variables（仓库 Settings → Secrets and variables → Actions → Variables）
+#     LFDD_APP_SERVER_URL  App 远程加载的前端地址，如 https://lfdd.example.com
+#     LFDD_API_BASE        网页构建时的后端地址（同域可留空）
+#   Secrets（Secrets 页签）
+#     ANDROID_KEYSTORE_BASE64   签名文件 base64（base64 -w 0 release.keystore）
+#     ANDROID_KEYSTORE_PASSWORD 签名库密码
+#     ANDROID_KEY_ALIAS         签名别名
+#     ANDROID_KEY_PASSWORD      签名别名密码
+on:
+  workflow_dispatch:
+    inputs:
+      server_url:
+        description: App 加载的前端地址（留空则使用仓库变量 LFDD_APP_SERVER_URL）
+        required: false
+      api_base:
+        description: 网页后端地址（留空则使用仓库变量 LFDD_API_BASE）
+        required: false
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: |
+            client/pnpm-lock.yaml
+            client/src-capacitor/pnpm-lock.yaml
+
+      - name: 安装前端依赖
+        working-directory: client
+        run: pnpm install --frozen-lockfile
+
+      - name: 安装 Capacitor 依赖
+        working-directory: client/src-capacitor
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      # GitHub 的 ubuntu 镜像已自带 Android SDK 和许可，直接用 sdkmanager 补齐编译所需版本
+      # （不用 android-actions/setup-android：它会尝试安装已废弃的 "tools" 包而失败）
+      - name: 安装 Android SDK 组件
+        run: |
+          SDK_MANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDK_MANAGER" ]; then
+            SDK_MANAGER="$ANDROID_HOME/cmdline-tools/bin/sdkmanager"
+          fi
+          yes | "$SDK_MANAGER" --licenses > /dev/null || true
+          "$SDK_MANAGER" "platforms;android-36" "build-tools;36.0.0" | tail -n 5
+          ls "$ANDROID_HOME/platforms" "$ANDROID_HOME/build-tools"
+
+      - name: 写入构建环境变量
+        working-directory: client
+        env:
+          API_BASE: ${{ inputs.api_base || vars.LFDD_API_BASE }}
+          SERVER_URL: ${{ inputs.server_url || vars.LFDD_APP_SERVER_URL }}
+        run: |
+          echo "VITE_API_BASE=$API_BASE" > .env
+          echo "LFDD_APP_SERVER_URL=$SERVER_URL" >> .env
+          cat .env
+
+      - name: 生成签名文件
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/lfdd-release.keystore"
+            keytool -list -keystore "$RUNNER_TEMP/lfdd-release.keystore" \
+              -storepass "$STORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+            echo "签名文件校验通过"
+          else
+            echo "::warning::未配置 ANDROID_KEYSTORE_BASE64，将使用 debug 签名（不能上架/覆盖安装）"
+          fi
+
+      - name: 构建前端
+        working-directory: client
+        run: npx quasar build -m spa
+
+      - name: 同步到 Android 工程
+        working-directory: client/src-capacitor
+        env:
+          LFDD_APP_SERVER_URL: ${{ inputs.server_url || vars.LFDD_APP_SERVER_URL }}
+        run: |
+          rm -rf www
+          mkdir -p www
+          cp -r ../dist/spa/. www/
+          npx cap sync android
+          cat android/app/src/main/assets/capacitor.config.json
+
+      - name: 打包 Release APK
+        working-directory: client/src-capacitor/android
+        env:
+          LFDD_KEYSTORE_PATH: ${{ runner.temp }}/lfdd-release.keystore
+          LFDD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          LFDD_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          LFDD_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --stacktrace --no-daemon
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfdd-apk
+          path: client/src-capacitor/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
