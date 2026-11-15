@@ -141,7 +141,8 @@ func buildMatchGoodsList() (list string, byID map[int64]model.Goods, err error) 
 		if g.Spec != "" {
 			line += " 规格=" + g.Spec
 		}
-		sb.WriteString(line + "\n")
+		sb.WriteString(line)
+		sb.WriteByte('\n')
 		byID[g.ID] = g
 	}
 	return sb.String(), byID, nil

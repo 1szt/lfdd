@@ -30,7 +30,7 @@ type UploadDirOutput struct {
 }
 
 // uploadDir 图片存储目录（LFDD_UPLOAD_PATH，空则 data/upload）
-func uploadDir(i UploadDirInput) (o UploadDirOutput, err error) {
+func uploadDir(_ UploadDirInput) (o UploadDirOutput, err error) {
 	dir := env.Get("LFDD_UPLOAD_PATH")
 	if dir == "" {
 		dir = "data/upload"
