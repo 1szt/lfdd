@@ -12,7 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// ============ 登录拦截系列中间件（AuthGuard / GuestGuard / OptionalGuard） ============
+// ============ 登录拦截系列中间件（AuthGuard / RoleGuard / GuestGuard / IdentityGuard） ============
+
+// GuestTokenFromHeader 从 Authorization 解析游客 token：返回游客身份，ok=false 表示不是游客
+func GuestTokenFromHeader(c *gin.Context) (guestToken string, ok bool) {
+	token := TokenFromHeader(TokenFromHeaderInput{Authorization: c.GetHeader("Authorization")}).Token
+	if !strings.HasPrefix(token, model.GuestTokenPrefix) {
+		return "", false
+	}
+	return token, true
+}
 
 // TokenFromHeaderInput 输入
 type TokenFromHeaderInput struct {
@@ -109,13 +118,13 @@ func RoleGuard() gin.HandlerFunc {
 
 // GuestGuard 未登录拦截中间件（游客中间件）：**未登录放行，已登录阻止**。
 // 用于登录、注册等已登录用户反而不应访问的页面：
-// - 未携带 token，或会话不存在/已过期 → 视为未登录，放行；
+// - 未携带 token、携带游客 token，或会话不存在/已过期 → 视为未登录，放行；
 // - 会话有效（已登录）→ 403 中断请求。
 func GuestGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := TokenFromHeader(TokenFromHeaderInput{Authorization: c.GetHeader("Authorization")}).Token
-		if token == "" {
-			// 未登录 → 放行
+		if token == "" || strings.HasPrefix(token, model.GuestTokenPrefix) {
+			// 未登录（或携带的是游客 token）→ 放行
 			c.Next()
 			return
 		}
@@ -135,29 +144,51 @@ func GuestGuard() gin.HandlerFunc {
 	}
 }
 
-// OptionalGuard 可选登录中间件：**不管是否登录都放行**，登录了就顺带把身份带入上下文。
-// - 已登录 → 把 userID、token 写入上下文（c.GetInt64("userID") / c.GetString("token")）后放行；
-// - 未登录（无 token 或会话失效）→ 直接放行，不写上下文；
-// handler 用 c.GetInt64("userID") != 0 判断是否已登录。
-// 用于登录与否都能访问、但登录后需要带出用户信息（个性化）的接口。
-// 会话查询异常也不拦截：可选登录不应因查询失败挡住公开请求。
-func OptionalGuard() gin.HandlerFunc {
+// IdentityGuard 身份拦截中间件：**登录身份或有效游客身份放行，两者都没有则阻止**。
+// 1. Authorization 中的 guest_ 前缀 token → 游客（须为服务端签发且未注销）；
+// 2. 其他 token → 登录身份（会话有效才放行，失效返回 401）；
+// 3. 未携带 token / 游客身份无效 → 401 + need_guest=true，前端据此重新申请游客身份后重试。
+// 用于所有业务接口：未申请游客身份前不返回任何业务数据。
+func IdentityGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := TokenFromHeader(TokenFromHeaderInput{Authorization: c.GetHeader("Authorization")}).Token
 		if token == "" {
-			// 未登录 → 放行
-			c.Next()
+			c.AbortWithStatusJSON(401, gin.H{
+				"message":    "未登录或游客身份无效，请先申请游客身份",
+				"need_guest": true,
+			})
 			return
 		}
 
+		// 1. 游客身份：必须是服务端签发且未注销的
+		if strings.HasPrefix(token, model.GuestTokenPrefix) {
+			if _, err := service.GetGuest(service.GetGuestInput{GuestID: token}); err == nil {
+				c.Set("guestID", token)
+				c.Set("isGuest", true)
+				c.Next()
+				return
+			} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+				c.AbortWithStatusJSON(500, gin.H{"message": "服务器内部错误"})
+				return
+			}
+			c.AbortWithStatusJSON(401, gin.H{
+				"message":    "游客身份无效，请重新申请",
+				"need_guest": true,
+			})
+			return
+		}
+
+		// 2. 登录身份
 		s, err := service.GetSession(service.GetSessionInput{Token: token})
 		if err != nil {
-			// 会话失效（或查询异常）→ 视为未登录，放行
-			c.Next()
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				c.AbortWithStatusJSON(401, gin.H{"message": "登录已过期或会话无效"})
+				return
+			}
+			c.AbortWithStatusJSON(500, gin.H{"message": "服务器内部错误"})
 			return
 		}
 
-		// 已登录：带入身份
 		c.Set("userID", s.Session.UserID)
 		c.Set("token", token)
 		c.Next()

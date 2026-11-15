@@ -17,6 +17,7 @@ func Start() {
 	models := []any{
 		&User{},
 		&Session{},
+		&Guest{},
 		&Menu{},
 		&Goods{},
 		&Order{},

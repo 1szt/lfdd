@@ -9,6 +9,16 @@ import (
 type ApiOrderHandler struct {
 }
 
+// guestIDOf 取上下文游客身份（由 IdentityGuard 校验游客认证头后写入）：空串表示非游客
+func guestIDOf(c *gin.Context) string {
+	v, ok := c.Get("guestID")
+	if !ok {
+		return ""
+	}
+	s, _ := v.(string)
+	return s
+}
+
 // Create 创建订单（购物车下单）：不记录价格、扣库存，明细价格待结单锁定
 // body: {"items":[{"id":"101","qty":2}]} → {"id":"1","order_no":"20261114120000123456"}
 func (h *ApiOrderHandler) Create(c *gin.Context) {
@@ -19,6 +29,7 @@ func (h *ApiOrderHandler) Create(c *gin.Context) {
 		})
 		return
 	}
+	req.GuestID = guestIDOf(c) // 游客订单归属取认证头，不接受 body 传入
 
 	out, err := service.CreateOrder(req)
 	if err != nil {
@@ -34,6 +45,10 @@ func (h *ApiOrderHandler) Create(c *gin.Context) {
 // Finish 结单：按当前价锁定本单明细并合计，只能结一次
 // body: {"id":"1"} → {"total":3700,"count":2}
 func (h *ApiOrderHandler) Finish(c *gin.Context) {
+	if guestIDOf(c) != "" {
+		c.JSON(403, gin.H{"message": "游客无权结单"})
+		return
+	}
 	var req service.FinishOrderInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
@@ -56,6 +71,10 @@ func (h *ApiOrderHandler) Finish(c *gin.Context) {
 // ChangePrice 改价：修改待结单订单某商品单价（打改价标记，结单不覆盖）
 // body: {"id":"1","goods_id":"101","price":1500} → 200
 func (h *ApiOrderHandler) ChangePrice(c *gin.Context) {
+	if guestIDOf(c) != "" {
+		c.JSON(403, gin.H{"message": "游客无权改价"})
+		return
+	}
 	var req service.ChangePriceInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
@@ -77,6 +96,10 @@ func (h *ApiOrderHandler) ChangePrice(c *gin.Context) {
 // Void 废单：作废未结单订单（回补库存并删除）
 // body: {"id":"1"} → 200
 func (h *ApiOrderHandler) Void(c *gin.Context) {
+	if guestIDOf(c) != "" {
+		c.JSON(403, gin.H{"message": "游客无权废单"})
+		return
+	}
 	var req service.VoidOrderInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
@@ -98,6 +121,10 @@ func (h *ApiOrderHandler) Void(c *gin.Context) {
 // Delete 删除订单（仅已结单）
 // body: {"id":"1"} → 200
 func (h *ApiOrderHandler) Delete(c *gin.Context) {
+	if guestIDOf(c) != "" {
+		c.JSON(403, gin.H{"message": "游客无权删除订单"})
+		return
+	}
 	var req service.DeleteOrderInput
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{
@@ -138,6 +165,7 @@ func (h *ApiOrderHandler) Page(c *gin.Context) {
 		Page:     req.Page,
 		PageSize: req.PageSize,
 		Status:   req.Status,
+		GuestID:  guestIDOf(c), // 游客只看自己的未结单（状态过滤由服务层强制）
 	})
 	if err != nil {
 		c.JSON(500, gin.H{

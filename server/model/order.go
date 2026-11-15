@@ -19,6 +19,9 @@ type Order struct {
 	// 状态：0 = 待结单（价格未锁定）、1 = 已结单（价格已锁定）
 	Status int8 `json:"status" gorm:"not null;default:0"`
 
+	// 游客身份（Authorization 中 guest_ 开头的游客 token）：空串表示登录用户下单；游客只能看到自己的单
+	GuestID string `json:"guest_id" gorm:"size:64;index"`
+
 	// 创建/更新时间，由 gorm 自动维护
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`

@@ -939,9 +939,9 @@ import {
   type SavedPrinter
 } from "@/utils/printerStore";
 
-const $q = useQuasar();
+import { clearGuestIdentity, TOKEN_KEY } from "@/utils/guest";
 
-const TOKEN_KEY = "lfdd_token";
+const $q = useQuasar();
 
 // ================= 类型 =================
 interface SidebarMenu {
@@ -979,6 +979,8 @@ const authError = ref("");
 function setToken(t: string) {
   token.value = t;
   localStorage.setItem(TOKEN_KEY, t);
+  // 登录后忽略并清掉游客身份（后端登录时已作废该身份）
+  clearGuestIdentity();
 }
 
 // 统一请求：自动带 Bearer token，401 时清理登录态

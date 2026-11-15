@@ -10,7 +10,7 @@
         @update:model-value="onTabChange"
       >
         <q-tab name="0" label="未结单" />
-        <q-tab name="1" label="已结单" />
+        <q-tab v-if="!isGuest" name="1" label="已结单" />
       </q-tabs>
       <q-btn flat dense size="sm" color="primary" icon="refresh" label="刷新" @click="loadOrders(true)" />
     </div>
@@ -33,10 +33,10 @@
         <div class="text-body2 text-weight-medium">{{ o.order_no }}</div>
         <div class="text-caption text-grey-6">{{ o.created_at }}</div>
 
-        <!-- 操作按钮单独一行，避免挤压订单号 -->
+        <!-- 操作按钮单独一行，避免挤压订单号；游客不显示结单/打印/改价/废单 -->
         <div class="row items-center q-gutter-xs q-mt-sm order-actions">
           <q-btn
-            v-if="o.status === 0"
+            v-if="!isGuest && o.status === 0"
             color="orange"
             icon="payments"
             label="结单"
@@ -54,6 +54,7 @@
             @click="copyToCart(o)"
           />
           <q-btn
+            v-if="!isGuest"
             color="primary"
             icon="print"
             label="打印"
@@ -63,7 +64,7 @@
             @click="openPrint(o)"
           />
           <q-btn
-            v-if="o.status === 0"
+            v-if="!isGuest && o.status === 0"
             color="teal"
             icon="price_change"
             label="改价"
@@ -72,7 +73,7 @@
             @click="openPrice(o)"
           />
           <q-btn
-            v-if="o.status === 0"
+            v-if="!isGuest && o.status === 0"
             color="negative"
             icon="block"
             label="废单"
@@ -293,9 +294,13 @@ import {
   type ReceiptOrder
 } from "../../utils/printer";
 import { printers, type SavedPrinter } from "../../utils/printerStore";
+import { isGuestMode } from "../../utils/guest";
 
 const $q = useQuasar();
 const router = useRouter();
+
+// 游客（未登录）：不显示/不使用结单、打印、改价、废单，也看不到已结单
+const isGuest = isGuestMode();
 
 interface OrderItem {
   goods_id: string;
@@ -355,8 +360,10 @@ async function loadOrders(reset: boolean) {
     loadingMore.value = true;
   }
   try {
+    // 游客只看未结单（后端也会强制）
+    const status = isGuest ? "0" : statusTab.value;
     const res = await fetch(
-      `/api/order/page?page=${page.value}&page_size=${PAGE_SIZE}&status=${statusTab.value}`
+      `/api/order/page?page=${page.value}&page_size=${PAGE_SIZE}&status=${status}`
     );
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `请求失败（${res.status}）`);

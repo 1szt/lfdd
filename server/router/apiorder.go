@@ -6,14 +6,15 @@ import (
 	"server/middleware"
 )
 
-// apiorder 订单接口：下单/查询均免登录（OptionalGuard，暂无用户身份区分）
+// apiorder 订单接口：须登录或持有有效游客身份（IdentityGuard）。
+// 游客：只能查自己的未结单，结单/改价/废单/删除一律拒绝；登录用户忽略游客身份。
 func apiOrderRouter() {
 	apiOrderHandler := &handler.ApiOrderHandler{}
 	group := web.Engine.Group("/api/order")
-	group.POST("/create", middleware.OptionalGuard(), apiOrderHandler.Create)
-	group.POST("/finish", middleware.OptionalGuard(), apiOrderHandler.Finish)
-	group.POST("/price", middleware.OptionalGuard(), apiOrderHandler.ChangePrice)
-	group.POST("/void", middleware.OptionalGuard(), apiOrderHandler.Void)
-	group.POST("/delete", middleware.OptionalGuard(), apiOrderHandler.Delete)
-	group.GET("/page", middleware.OptionalGuard(), apiOrderHandler.Page)
+	group.POST("/create", middleware.IdentityGuard(), apiOrderHandler.Create)
+	group.POST("/finish", middleware.IdentityGuard(), apiOrderHandler.Finish)
+	group.POST("/price", middleware.IdentityGuard(), apiOrderHandler.ChangePrice)
+	group.POST("/void", middleware.IdentityGuard(), apiOrderHandler.Void)
+	group.POST("/delete", middleware.IdentityGuard(), apiOrderHandler.Delete)
+	group.GET("/page", middleware.IdentityGuard(), apiOrderHandler.Page)
 }

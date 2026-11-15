@@ -1,5 +1,5 @@
-// Package middleware 全局中间件集合：按功能域分文件（登录拦截系列 AuthGuard/GuestGuard/OptionalGuard
-// 集中在 auth.go），由 web.Start 统一装配。
+// Package middleware 全局中间件集合：按功能域分文件（登录拦截系列 AuthGuard/RoleGuard/GuestGuard/
+// IdentityGuard 集中在 auth.go），由 web.Start 统一装配。
 package middleware
 
 import (

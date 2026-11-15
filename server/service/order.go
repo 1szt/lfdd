@@ -18,7 +18,8 @@ type CreateOrderItemInput struct {
 	Qty int   `json:"qty"`       // 购买数量
 }
 type CreateOrderInput struct {
-	Items []CreateOrderItemInput `json:"items"` // 购物车明细
+	Items   []CreateOrderItemInput `json:"items"` // 购物车明细
+	GuestID string                 `json:"-"`     // 游客身份（由中间件从认证头带入，不接受 body 传入）
 }
 type CreateOrderOutput struct {
 	ID      int64  `json:"id,string"`
@@ -90,7 +91,7 @@ func CreateOrder(i CreateOrderInput) (o CreateOrderOutput, err error) {
 			}
 		}
 
-		ord := model.Order{OrderNo: o.OrderNo, Count: count, Status: 0}
+		ord := model.Order{OrderNo: o.OrderNo, Count: count, Status: 0, GuestID: i.GuestID}
 		if e := tx.Create(&ord).Error; e != nil {
 			return e
 		}
@@ -208,9 +209,9 @@ func FinishOrder(i FinishOrderInput) (o FinishOrderOutput, err error) {
 // ------------------------ ChangePrice 改价 ------------------------
 
 type ChangePriceInput struct {
-	ID      int64 `json:"id,string"`      // 订单 ID
+	ID      int64 `json:"id,string"`       // 订单 ID
 	GoodsID int64 `json:"goods_id,string"` // 商品 ID（订单内明细）
-	Price   int   `json:"price"`          // 改后单价，分
+	Price   int   `json:"price"`           // 改后单价，分
 }
 type ChangePriceOutput struct{}
 
@@ -347,26 +348,27 @@ func DeleteOrder(i DeleteOrderInput) (o DeleteOrderOutput, err error) {
 // ------------------------ GetOrders 订单分页 ------------------------
 
 type GetOrdersInput struct {
-	Page     int `json:"page"`      // 页码，从 1 开始
-	PageSize int `json:"page_size"` // 每页条数
-	Status   int `json:"status"`    // -1 全部（默认）、0 未结单、1 已结单
+	Page     int    `json:"page"`      // 页码，从 1 开始
+	PageSize int    `json:"page_size"` // 每页条数
+	Status   int    `json:"status"`    // -1 全部（默认）、0 未结单、1 已结单
+	GuestID  string `json:"-"`         // 游客身份：非空时只返回该游客自己的未结单
 }
 type OrderItemView struct {
-	GoodsID    int64  `json:"goods_id,string"`
-	Name       string `json:"name"`
-	Price      int    `json:"price"`      // 单价，分（未改价的待结单单为商品当前价；改价/结单后为锁定价）
-	Edited     int8   `json:"edited"`     // 是否改过价（改价标记）
-	OrigPrice  int    `json:"orig_price"` // 原价，分（未结单=商品现价；已结单=结单时商品价）
-	Spec       string `json:"spec"`
-	Qty        int    `json:"qty"`
-	Image      string `json:"image"`
+	GoodsID   int64  `json:"goods_id,string"`
+	Name      string `json:"name"`
+	Price     int    `json:"price"`      // 单价，分（未改价的待结单单为商品当前价；改价/结单后为锁定价）
+	Edited    int8   `json:"edited"`     // 是否改过价（改价标记）
+	OrigPrice int    `json:"orig_price"` // 原价，分（未结单=商品现价；已结单=结单时商品价）
+	Spec      string `json:"spec"`
+	Qty       int    `json:"qty"`
+	Image     string `json:"image"`
 }
 type OrderView struct {
 	ID        int64           `json:"id,string"`
 	OrderNo   string          `json:"order_no"`
-	Total     int             `json:"total"`   // 合计，分（待结单时为 0）
-	Count     int             `json:"count"`   // 商品总件数
-	Status    int8            `json:"status"`  // 0 待结单、1 已结单
+	Total     int             `json:"total"`  // 合计，分（待结单时为 0）
+	Count     int             `json:"count"`  // 商品总件数
+	Status    int8            `json:"status"` // 0 待结单、1 已结单
 	CreatedAt string          `json:"created_at"`
 	Items     []OrderItemView `json:"items"`
 }
@@ -391,7 +393,10 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 	}
 
 	q := db.DB.Model(&model.Order{})
-	if i.Status == 0 || i.Status == 1 {
+	if i.GuestID != "" {
+		// 游客：只能看到自己下的单，且看不到已结单
+		q = q.Where("guest_id = ? AND status = ?", i.GuestID, 0)
+	} else if i.Status == 0 || i.Status == 1 {
 		q = q.Where("status = ?", i.Status)
 	}
 	if err = q.Count(&o.Total).Error; err != nil {
