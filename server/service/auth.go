@@ -79,87 +79,74 @@ func Login(i LoginInput) (o LoginOutput, err error) {
 	return o, nil
 }
 
-// ================= 注册 =================
-type RegisterInput struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	IP       string `json:"ip"`
-	Device   string `json:"device"`
+// ================= 首次启动管理员 =================
+type EnsureAdminInput struct{}
+type EnsureAdminOutput struct {
+	Created  bool   `json:"created"`  // 本次是否新建
+	Email    string `json:"email"`    // 管理员邮箱（仅新建时回传，用于启动日志打印）
+	Password string `json:"password"` // 管理员初始密码（仅新建时回传，库里只存哈希）
 }
 
-type RegisterOutput struct {
-	Token string `json:"token"`
-}
-
-// Register 注册：校验邮箱未占用 → 写入用户（argon2id 哈希）→ 创建会话
-func Register(i RegisterInput) (o RegisterOutput, err error) {
-	email := strings.ToLower(strings.TrimSpace(i.Email))
-	if email == "" {
-		return o, errors.New("邮箱不能为空")
-	}
-	if len(i.Password) < 8 {
-		return o, errors.New("密码长度至少 8 位")
-	}
-
-	// 1. 检测是否存在相同邮箱的用户
+// EnsureAdmin 首次启动（用户表为空）时生成管理员账号：随机邮箱 + 随机密码。
+// 注册功能已关闭，这是系统唯一的初始账号来源；凭据由调用方打印到启动日志。
+func EnsureAdmin(_ EnsureAdminInput) (o EnsureAdminOutput, err error) {
 	var count int64
-	if err = db.DB.Model(&model.User{}).Where("email = ?", email).Count(&count).Error; err != nil {
+	if err = db.DB.Model(&model.User{}).Count(&count).Error; err != nil {
 		return o, err
 	}
 	if count > 0 {
-		return o, errors.New("邮箱已存在")
+		return o, nil
 	}
 
-	// 2. 密码哈希（argon2id，存 PHC 编码串）
-	h, err := HashPassword(HashPasswordInput{Password: i.Password})
+	// 随机邮箱：admin_ + 8 位十六进制 @lfdd.local
+	var b [4]byte
+	if _, err = rand.Read(b[:]); err != nil {
+		return o, err
+	}
+	email := fmt.Sprintf("admin_%x@lfdd.local", b)
+
+	// 随机密码：12 位（字母表去掉易混淆字符）
+	pwd, err := randString(12)
 	if err != nil {
 		return o, err
 	}
-
-	// 2.5 首个注册用户自动成为管理员（role=2），后续用户默认普通（role=1）
-	var userCount int64
-	if err = db.DB.Model(&model.User{}).Count(&userCount).Error; err != nil {
+	h, err := HashPassword(HashPasswordInput{Password: pwd})
+	if err != nil {
 		return o, err
 	}
-	role := int8(1)
-	if userCount == 0 {
-		role = 2
-	}
-
-	// 3. 生成业务主键与登录名
 	id, err := GenUserID(GenUserIDInput{})
 	if err != nil {
 		return o, err
 	}
-	un, err := GenUsername(GenUsernameInput{Email: email})
-	if err != nil {
-		return o, err
-	}
 
-	// 4. 注册用户（ID、username 由业务层生成）
 	user := &model.User{
 		ID:       id.ID,
-		Username: un.Username,
+		Username: strings.SplitN(email, "@", 2)[0], // 用户名与邮箱前缀相同，登录时两者都可
 		Email:    email,
 		Password: h.Hash,
-		Role:     role,
+		Role:     2, // 管理员
 	}
 	if err = db.DB.Create(user).Error; err != nil {
 		return o, err
 	}
 
-	// 5. 生成 token
-	token, err := CreateSession(CreateSessionInput{
-		UserID: user.ID,
-		IP:     i.IP,
-		Device: i.Device,
-	})
-	if err != nil {
-		return o, err
-	}
-
-	o.Token = token.Token
+	o.Created = true
+	o.Email = email
+	o.Password = pwd
 	return o, nil
+}
+
+// randString 生成 n 位随机串（字母表去掉 0O1lI 等易混淆字符）
+func randString(n int) (s string, err error) {
+	const alphabet = "abcdefghjkmnpqrstuvwxyzABCDEFGHJKMNPQRSTUVWXYZ23456789"
+	b := make([]byte, n)
+	if _, err = rand.Read(b); err != nil {
+		return "", err
+	}
+	for i := range b {
+		b[i] = alphabet[int(b[i])%len(alphabet)]
+	}
+	return string(b), nil
 }
 
 // ================= 退出登录 =================
@@ -276,35 +263,5 @@ func GenUserID(i GenUserIDInput) (o GenUserIDOutput, err error) {
 		return o, err
 	}
 	o.ID = time.Now().UnixMilli()<<10 | int64(binary.BigEndian.Uint16(b[:])&0x3FF)
-	return o, nil
-}
-
-type GenUsernameInput struct {
-	Email string `json:"email"`
-}
-type GenUsernameOutput struct {
-	Username string `json:"username"`
-}
-
-// GenUsername 生成登录名：邮箱前缀（限 20 字符）+ 4 位随机后缀，保证唯一
-func GenUsername(i GenUsernameInput) (o GenUsernameOutput, err error) {
-	prefix := strings.SplitN(i.Email, "@", 2)[0]
-	var sb strings.Builder
-	for _, r := range prefix {
-		if sb.Len() >= 20 {
-			break
-		}
-		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '_' {
-			sb.WriteRune(r)
-		}
-	}
-	if sb.Len() == 0 {
-		sb.WriteString("user")
-	}
-	var b [2]byte
-	if _, err = rand.Read(b[:]); err != nil {
-		return o, err
-	}
-	o.Username = fmt.Sprintf("%s_%04x", sb.String(), binary.BigEndian.Uint16(b[:]))
 	return o, nil
 }

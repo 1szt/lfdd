@@ -9,8 +9,9 @@ import (
 type ApiAuthHandler struct {
 }
 
-// apiauth 认证接口：guest/login/register 经 GuestGuard（未登录放行、已登录阻止），
-// logout/refresh 经 AuthGuard（登录放行、未登录阻止）；guest/revoke 主动注销游客身份
+// apiauth 认证接口：guest/login 经 GuestGuard（未登录放行、已登录阻止），
+// logout/refresh 经 AuthGuard（登录放行、未登录阻止）；guest/revoke 主动注销游客身份。
+// 注册已关闭：管理员账号由首次启动自动生成（见 service.EnsureAdmin）。
 func apiAuthRouter() {
 	apiAuthHandler := &handler.ApiAuthHandler{}
 	group := web.Engine.Group("/api/auth")
@@ -19,5 +20,4 @@ func apiAuthRouter() {
 	group.POST("/login", middleware.GuestGuard(), apiAuthHandler.Login)
 	group.POST("/logout", middleware.AuthGuard(), apiAuthHandler.Logout)
 	group.POST("/refresh", middleware.AuthGuard(), apiAuthHandler.Refresh)
-	group.POST("/register", middleware.GuestGuard(), apiAuthHandler.Register)
 }

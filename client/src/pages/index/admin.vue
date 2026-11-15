@@ -1,34 +1,11 @@
 <template>
   <q-page class="q-pa-md">
-    <!-- ================= 未登录：登录 / 注册 ================= -->
+    <!-- ================= 未登录：登录（注册已关闭，初始账号见服务端启动日志） ================= -->
     <div v-if="!token" class="flex flex-center" style="min-height: 60vh">
       <q-card style="width: 360px; max-width: 95vw">
-        <q-tabs
-          v-model="authTab"
-          dense
-          class="text-grey-7"
-          active-color="primary"
-          indicator-color="primary"
-          align="justify"
-          narrow-indicator
-        >
-          <q-tab name="login" label="登录" />
-          <q-tab name="register" label="注册" />
-        </q-tabs>
-        <q-separator />
-
-        <q-card-section class="column q-gutter-sm">
+        <q-card-section class="text-h6">登录</q-card-section>
+        <q-card-section class="column q-gutter-sm q-pt-none">
           <q-input
-            v-if="authTab === 'register'"
-            v-model="regEmail"
-            label="邮箱"
-            type="email"
-            outlined
-            dense
-            autofocus
-          />
-          <q-input
-            v-else
             v-model="account"
             label="账号（用户名 / 邮箱）"
             outlined
@@ -41,7 +18,6 @@
             type="password"
             outlined
             dense
-            :hint="authTab === 'register' ? '至少 8 位' : undefined"
             @keyup.enter="submitAuth"
           />
           <div v-if="authError" class="text-negative text-caption">{{
@@ -49,10 +25,13 @@
           }}</div>
           <q-btn
             color="primary"
-            :label="authTab === 'login' ? '登录' : '注册并登录'"
+            label="登录"
             :loading="authBusy"
             @click="submitAuth"
           />
+          <div class="text-caption text-grey-6">
+            初始账号与密码见服务端启动日志
+          </div>
         </q-card-section>
       </q-card>
     </div>
@@ -1156,9 +1135,7 @@ function describeError(e: unknown) {
 
 // ================= 认证 =================
 const token = ref(localStorage.getItem(TOKEN_KEY) ?? "");
-const authTab = ref("login");
 const account = ref("");
-const regEmail = ref("");
 const password = ref("");
 const authBusy = ref(false);
 const authError = ref("");
@@ -1204,16 +1181,10 @@ async function submitAuth() {
   authError.value = "";
   authBusy.value = true;
   try {
-    const isRegister = authTab.value === "register";
-    const data = await api(
-      isRegister ? "/api/auth/register" : "/api/auth/login",
-      {
-        method: "POST",
-        body: isRegister
-          ? { email: regEmail.value.trim(), password: password.value }
-          : { account: account.value.trim(), password: password.value }
-      }
-    );
+    const data = await api("/api/auth/login", {
+      method: "POST",
+      body: { account: account.value.trim(), password: password.value }
+    });
     setToken(data.token);
     password.value = "";
     await loadMe();

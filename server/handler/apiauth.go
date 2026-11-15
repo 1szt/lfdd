@@ -80,37 +80,6 @@ func (h *ApiAuthHandler) Login(c *gin.Context) {
 	})
 }
 
-// Register 注册
-func (h *ApiAuthHandler) Register(c *gin.Context) {
-	var req struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{
-			"message": "请求参数错误",
-		})
-		return
-	}
-
-	token, err := service.Register(service.RegisterInput{
-		Email:    req.Email,
-		Password: req.Password,
-		IP:       c.ClientIP(),
-		Device:   c.GetHeader("User-Agent"),
-	})
-	if err != nil {
-		c.JSON(400, gin.H{
-			"message": err.Error(),
-		})
-		return
-	}
-
-	c.JSON(200, gin.H{
-		"token": token.Token,
-	})
-}
-
 // Logout 退出（token 由 Auth 中间件解析并放入上下文）
 func (h *ApiAuthHandler) Logout(c *gin.Context) {
 	_, err := service.Logout(service.LogoutInput{
