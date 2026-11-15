@@ -188,14 +188,20 @@ func chatCompletionExt(i ChatCompletionExtInput) (o ChatCompletionExtOutput, err
 		model = "deepseek-chat"
 	}
 
-	body, _ := json.Marshal(map[string]any{
+	reqBody := map[string]any{
 		"model":       model,
 		"temperature": 0,
 		"messages": []map[string]string{
 			{"role": "system", "content": i.System},
 			{"role": "user", "content": i.User},
 		},
-	})
+	}
+	// 思考模式开启时附带 reasoning_effort（OpenAI 兼容端点通用参数；
+	// 不支持思考的模型/端点会忽略该字段，若报错则在管理页关闭思考模式）
+	if getCfg(CfgAiThinking, "", "0") == "1" {
+		reqBody["reasoning_effort"] = getCfg(CfgAiReasoningEffort, "", "medium")
+	}
+	body, _ := json.Marshal(reqBody)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

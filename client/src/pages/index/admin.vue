@@ -647,6 +647,29 @@
                   dense
                   placeholder="deepseek-chat"
                 />
+                <!-- 思考模式：开启时请求附带 reasoning_effort -->
+                <div class="row items-center q-gutter-sm q-pt-xs">
+                  <q-toggle
+                    v-model="aiForm.thinking"
+                    label="思考模式"
+                    color="primary"
+                    dense
+                  />
+                  <q-select
+                    v-model="aiForm.reasoning_effort"
+                    :options="effortOptions"
+                    outlined
+                    dense
+                    label="思考强度"
+                    emit-value
+                    map-options
+                    :disable="!aiForm.thinking"
+                    style="min-width: 150px"
+                  />
+                  <span class="text-caption text-grey-7">
+                    开启时请求带 reasoning_effort；不支持思考的模型会忽略该参数
+                  </span>
+                </div>
                 <div class="row q-gutter-sm">
                   <q-btn color="primary" label="保存" unelevated :loading="aiSaving" @click="saveAi" />
                   <q-btn
@@ -1826,8 +1849,16 @@ const aiForm = reactive({
   base_url: "",
   api_key: "",
   model: "",
-  system_prompt: ""
+  system_prompt: "",
+  thinking: false,
+  reasoning_effort: "medium"
 });
+// 思考强度档位（对应 OpenAI reasoning_effort，通用三档）
+const effortOptions = [
+  { label: "低（快）", value: "low" },
+  { label: "中（默认）", value: "medium" },
+  { label: "高（深思）", value: "high" }
+];
 const aiSaving = ref(false);
 const aiTesting = ref(false);
 const aiTestResult = ref("");
@@ -1842,6 +1873,8 @@ async function loadAi() {
     aiForm.api_key = d.api_key ?? "";
     aiForm.model = d.model ?? "";
     aiForm.system_prompt = d.system_prompt ?? "";
+    aiForm.thinking = d.thinking === true;
+    aiForm.reasoning_effort = d.reasoning_effort || "medium";
     aiUserTemplate.value = d.user_prompt_template ?? "";
     aiTestResult.value = "";
   } catch (e) {
@@ -1870,7 +1903,9 @@ async function saveAi() {
         base_url: aiForm.base_url.trim(),
         api_key: aiForm.api_key.trim(),
         model: aiForm.model.trim(),
-        system_prompt: aiForm.system_prompt.trim()
+        system_prompt: aiForm.system_prompt.trim(),
+        thinking: aiForm.thinking,
+        reasoning_effort: aiForm.reasoning_effort
       }
     });
     $q.notify({ message: "已保存，立即生效", color: "positive" });

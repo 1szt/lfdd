@@ -16,10 +16,12 @@ import (
 
 // 配置键
 const (
-	CfgAiBaseURL      = "ai_base_url"      // 大模型接口地址（OpenAI 兼容，不带 /chat/completions）
-	CfgAiAPIKey       = "ai_api_key"       // 大模型 API Key
-	CfgAiModel        = "ai_model"         // 模型名，如 deepseek-chat
-	CfgAiSystemPrompt = "ai_system_prompt" // AI 商品匹配的系统提示词
+	CfgAiBaseURL         = "ai_base_url"         // 大模型接口地址（OpenAI 兼容，不带 /chat/completions）
+	CfgAiAPIKey          = "ai_api_key"          // 大模型 API Key
+	CfgAiModel           = "ai_model"            // 模型名，如 deepseek-chat
+	CfgAiSystemPrompt    = "ai_system_prompt"    // AI 商品匹配的系统提示词
+	CfgAiThinking        = "ai_thinking"         // 思考模式开关："1" 开 / "0" 关
+	CfgAiReasoningEffort = "ai_reasoning_effort" // 思考强度：low / medium / high
 )
 
 // DefaultAiSystemPrompt AI 商品匹配的内置系统提示词（数据库未配置时使用）
@@ -63,6 +65,10 @@ type GetAiSettingsOutput struct {
 	APIKey       string `json:"api_key"`
 	Model        string `json:"model"`
 	SystemPrompt string `json:"system_prompt"`
+	// Thinking 思考模式开关：开启时请求附带 reasoning_effort 参数
+	Thinking bool `json:"thinking"`
+	// ReasoningEffort 思考强度：low / medium / high
+	ReasoningEffort string `json:"reasoning_effort"`
 	// UserPromptTemplate 真实拼接的 user 消息模板（商品列表取当前上架商品，
 	// 与 MatchGoods 实际发送一致；点单文字用占位符），供管理页「拼接后的提示词」展示
 	UserPromptTemplate string `json:"user_prompt_template"`
@@ -74,6 +80,8 @@ func GetAiSettings(i GetAiSettingsInput) (o GetAiSettingsOutput, err error) {
 	o.APIKey = getCfg(CfgAiAPIKey, "LFDD_AI_API_KEY", "")
 	o.Model = getCfg(CfgAiModel, "LFDD_AI_MODEL", "deepseek-chat")
 	o.SystemPrompt = getCfg(CfgAiSystemPrompt, "", DefaultAiSystemPrompt)
+	o.Thinking = getCfg(CfgAiThinking, "", "0") == "1"
+	o.ReasoningEffort = getCfg(CfgAiReasoningEffort, "", "medium")
 
 	// 拼真实 user 消息模板：与 MatchGoods 的 fmt.Sprintf 结构完全一致
 	list, _, err := buildMatchGoodsList()
@@ -93,6 +101,10 @@ type SaveAiSettingsInput struct {
 	APIKey       string `json:"api_key"`
 	Model        string `json:"model"`
 	SystemPrompt string `json:"system_prompt"`
+	// Thinking 思考模式开关
+	Thinking bool `json:"thinking"`
+	// ReasoningEffort 思考强度：low / medium / high
+	ReasoningEffort string `json:"reasoning_effort"`
 }
 type SaveAiSettingsOutput struct {
 }
@@ -113,6 +125,13 @@ func SaveAiSettings(i SaveAiSettingsInput) (o SaveAiSettingsOutput, err error) {
 	if strings.TrimSpace(i.SystemPrompt) == "" {
 		return o, errors.New("系统提示词不能为空")
 	}
+	effort := strings.ToLower(strings.TrimSpace(i.ReasoningEffort))
+	if effort == "" {
+		effort = "medium"
+	}
+	if effort != "low" && effort != "medium" && effort != "high" {
+		return o, errors.New("思考强度只支持 low / medium / high")
+	}
 
 	if err = setCfg(CfgAiBaseURL, i.BaseURL, "大模型接口地址"); err != nil {
 		return o, err
@@ -124,6 +143,16 @@ func SaveAiSettings(i SaveAiSettingsInput) (o SaveAiSettingsOutput, err error) {
 		return o, err
 	}
 	if err = setCfg(CfgAiSystemPrompt, i.SystemPrompt, "AI 商品匹配系统提示词"); err != nil {
+		return o, err
+	}
+	thinking := "0"
+	if i.Thinking {
+		thinking = "1"
+	}
+	if err = setCfg(CfgAiThinking, thinking, "思考模式开关"); err != nil {
+		return o, err
+	}
+	if err = setCfg(CfgAiReasoningEffort, effort, "思考强度"); err != nil {
 		return o, err
 	}
 	return o, nil
