@@ -48,8 +48,13 @@
       <!-- 订单卡片 -->
       <div v-for="o in orders" :key="o.id" class="order-card">
         <!-- 卡面只显示单号后 6 位；完整单号仍用于小票/复制/弹窗 -->
-        <div class="text-h6 text-weight-medium">{{ o.order_no.slice(-6) }}</div>
-        <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+        <div class="row items-baseline justify-between">
+          <div>
+            <span class="order-no-label"></span>
+            <span class="order-no">{{ o.order_no.slice(-6) }}</span>
+          </div>
+          <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+        </div>
 
         <!-- 操作按钮单独一行，避免挤压订单号；游客不显示结单/打印/改价/废单 -->
         <div class="row items-center q-gutter-xs q-mt-sm order-actions">
@@ -804,6 +809,20 @@ onMounted(() => {
   border: 1px solid #ececec;
   border-radius: 10px;
   background: #fff;
+}
+
+/* 卡面单号：小标签 + 加粗数字，时间靠右 */
+.order-no-label {
+  font-size: 13px;
+  color: #999;
+  margin-right: 6px;
+}
+
+.order-no {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .order-items {
