@@ -47,7 +47,8 @@
 
       <!-- 订单卡片 -->
       <div v-for="o in orders" :key="o.id" class="order-card">
-        <div class="text-body2 text-weight-medium">{{ o.order_no }}</div>
+        <!-- 卡面只显示单号后 6 位；完整单号仍用于小票/复制/弹窗 -->
+        <div class="text-h6 text-weight-medium">{{ o.order_no.slice(-6) }}</div>
         <div class="text-caption text-grey-6">{{ o.created_at }}</div>
 
         <!-- 操作按钮单独一行，避免挤压订单号；游客不显示结单/打印/改价/废单 -->
