@@ -95,7 +95,7 @@ export default defineConfig(ctx => {
       // 开发时将 /api（含图片 /api/upload/{hash}）代理到本地后端，避免跨域
       proxy: {
         "/api": {
-          target: "http://127.0.0.1:34334",
+          target: "http://localhost:9081",
           changeOrigin: true
         }
       }
@@ -103,9 +103,9 @@ export default defineConfig(ctx => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      // 提示统一置顶：不遮挡底部操作栏/结算按钮
+      // 提示统一放底部，并在 app.scss 中抬高，避开底部导航/结算条/悬浮购物车入口
       config: {
-        notify: { position: "top" }
+        notify: { position: "bottom" }
       },
 
       // iconSet: 'material-icons', // Quasar icon set
