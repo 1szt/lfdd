@@ -1,0 +1,16 @@
+# 本地依赖与构建产物
+node_modules
+**/node_modules
+dist
+.quasar
+
+# Capacitor / Android 的本地构建产物
+src-capacitor/android/app/build
+src-capacitor/android/build
+src-capacitor/android/.gradle
+
+# 本地环境变量，避免把本机配置打进镜像
+.env
+
+# 版本控制
+.git
