@@ -1,14 +1,9 @@
 name: Server Image
 
-# 构建后端（Go）Docker 镜像并推送到 GitHub 容器仓库 GHCR：
-#   ghcr.io/<owner>/<repo>-server:latest / :main / :vX.Y.Z / :sha-xxxx
+# 构建后端（Go）镜像并导出为 docker 镜像包（tar）：
+#   产物 lfdd-server-image → lfdd-server.tar，内含镜像 lfdd-server:latest
+#   使用：docker load -i lfdd-server.tar && docker run -d -p 9081:9081 -v lfdd-data:/app/data lfdd-server:latest
 # 触发：手动运行、推送 v* 标签、main 分支上 server 目录变更。
-# 首次推送后到仓库 Packages 页面把镜像可见性改为 Public（默认 Private，需登录才能拉取）。
-#
-# 运行示例：
-#   docker run -d --name lfdd-server -p 9081:9081 \
-#     -v lfdd-data:/app/data ghcr.io/<owner>/lfdd-server:latest
-# 首次启动会打印随机管理员账号密码（只打印一次）；配置/数据库/上传都在 /app/data。
 on:
   workflow_dispatch:
   push:
@@ -20,13 +15,6 @@ on:
       - "server/**"
       - ".github/workflows/server.yml"
 
-permissions:
-  contents: read
-  packages: write
-
-env:
-  IMAGE_NAME: ${{ github.repository }}-server
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,34 +23,18 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: 登录 GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 生成镜像标签
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-
-      # 需要 arm64 时把 platforms 改成 linux/amd64,linux/arm64（CGO 交叉编译走 QEMU，构建会明显变慢）
-      - name: 构建并推送
+      - name: 构建镜像并导出 tar
         uses: docker/build-push-action@v6
         with:
           context: ./server
           file: ./server/Dockerfile
+          # type=docker 只能单平台；需要 arm64 时改 platforms 并分别导出
           platforms: linux/amd64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: lfdd-server:latest
+          outputs: type=docker,dest=${{ runner.temp }}/lfdd-server.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfdd-server-image
+          path: ${{ runner.temp }}/lfdd-server.tar
+          if-no-files-found: error

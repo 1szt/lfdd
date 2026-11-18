@@ -1,13 +1,11 @@
 name: Web Image
 
-# 构建前端（Quasar SPA）nginx 镜像并推送到 GHCR：
-#   ghcr.io/<owner>/<repo>-web:latest / :main / :vX.Y.Z / :sha-xxxx
+# 构建前端（Quasar SPA）nginx 镜像并导出为 docker 镜像包（tar）：
+#   产物 lfdd-web-image → lfdd-web.tar，内含镜像 lfdd-web:latest
+#   使用：docker load -i lfdd-web.tar && docker run -d -p 8080:80 lfdd-web:latest
 # 后端地址在构建时注入前端产物，运行期无法修改：
 #   仓库 Variables LFDD_API_BASE，或手动触发时填 api_base
 # 触发：手动运行、推送 v* 标签、main 分支上 client 目录变更。
-#
-# 运行示例：
-#   docker run -d --name lfdd-web -p 8080:80 ghcr.io/<owner>/lfdd-web:latest
 on:
   workflow_dispatch:
     inputs:
@@ -23,13 +21,6 @@ on:
       - "client/**"
       - ".github/workflows/web-image.yml"
 
-permissions:
-  contents: read
-  packages: write
-
-env:
-  IMAGE_NAME: ${{ github.repository }}-web
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,35 +29,19 @@ jobs:
 
       - uses: docker/setup-buildx-action@v3
 
-      - name: 登录 GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: 生成镜像标签
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
-
-      - name: 构建并推送
+      - name: 构建镜像并导出 tar
         uses: docker/build-push-action@v6
         with:
           context: ./client
           file: ./client/Dockerfile
           platforms: linux/amd64
-          push: true
+          tags: lfdd-web:latest
           build-args: |
             API_BASE=${{ inputs.api_base || vars.LFDD_API_BASE }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          outputs: type=docker,dest=${{ runner.temp }}/lfdd-web.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfdd-web-image
+          path: ${{ runner.temp }}/lfdd-web.tar
+          if-no-files-found: error
