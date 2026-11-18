@@ -18,7 +18,7 @@ func Start() {
 
 	env.Add("LFDD_LOG_PATH", "data/log/lfdd.log", "日志文件路径（空则使用默认 data/log/lfdd.log）")
 
-	env.Add("LFDD_SERVER_HTTPS", "true", "是否启用 HTTPS（true/false）")
+	env.Add("LFDD_SERVER_HTTPS", "false", "是否启用 HTTPS（true/false）")
 	env.Add("LFDD_SERVER_HTTPS_AUTO", "true", "是否自签名证书（true/false）")
 	env.Add("LFDD_SERVER_CERT", "", "HTTPS 证书路径")
 	env.Add("LFDD_SERVER_KEY", "", "HTTPS 私钥路径")
