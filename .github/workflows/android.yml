@@ -1,6 +1,7 @@
 name: Android APK
 
-# 手动触发或打 tag 时构建安卓 APK，前端资源打包进 APK，只需注入后端地址。
+# 手动触发、推 v* 标签或 main 分支上 client 目录变更时构建安卓 APK；
+# 前端资源打包进 APK，只需注入后端地址。
 # 配置位置：Settings → Secrets and variables → Actions（仓库级）
 #   Variables
 #     LFDD_API_BASE        后端地址，如 https://api.example.com
@@ -18,6 +19,11 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
+    paths:
+      - "client/**"
+      - ".github/workflows/android.yml"
 
 jobs:
   build:
