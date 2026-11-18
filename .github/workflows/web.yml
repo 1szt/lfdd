@@ -1,9 +1,13 @@
-name: Web Build
+name: Web
 
-# 构建可直接部署到服务器的网页（SPA）。
-# 产物 lfdd-web.zip 解压后即为站点根目录内容（index.html 在根）。
-# 后端地址通过 Variables 注入：
+# 两套产物：
+#   1. 站点包（job: spa）→ lfdd-web → lfdd-web.zip
+#      解压即为站点根目录内容（index.html 在根），丢给任意静态服务器/nginx
+#   2. 镜像版（job: image）→ lfdd-web-image → lfdd-web.tar，内含镜像 lfdd-web:latest
+#      docker load -i lfdd-web.tar && docker run -d -p 8080:80 lfdd-web:latest
+# 后端地址通过 Variables 注入（构建时写死进前端产物，运行期不可改）：
 #   LFDD_API_BASE  后端地址，如 https://api.example.com（同域可留空）
+# 触发：手动运行、推送 v* 标签、main 分支上 client 目录变更。
 on:
   workflow_dispatch:
     inputs:
@@ -13,9 +17,15 @@ on:
   push:
     tags:
       - "v*"
+    branches:
+      - main
+    paths:
+      - "client/**"
+      - ".github/workflows/web.yml"
 
 jobs:
-  build:
+  # 静态站点包（非镜像版本）
+  spa:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,4 +64,29 @@ jobs:
         with:
           name: lfdd-web
           path: ${{ runner.temp }}/lfdd-web.zip
+          if-no-files-found: error
+
+  # 镜像版本
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: 构建镜像并导出 tar
+        uses: docker/build-push-action@v6
+        with:
+          context: ./client
+          file: ./client/Dockerfile
+          platforms: linux/amd64
+          tags: lfdd-web:latest
+          build-args: |
+            API_BASE=${{ inputs.api_base || vars.LFDD_API_BASE }}
+          outputs: type=docker,dest=${{ runner.temp }}/lfdd-web.tar
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfdd-web-image
+          path: ${{ runner.temp }}/lfdd-web.tar
           if-no-files-found: error

@@ -1,8 +1,10 @@
-name: Server Image
+name: Server
 
-# 构建后端（Go）镜像并导出为 docker 镜像包（tar）：
-#   产物 lfdd-server-image → lfdd-server.tar，内含镜像 lfdd-server:latest
-#   使用：docker load -i lfdd-server.tar && docker run -d -p 9081:9081 -v lfdd-data:/app/data lfdd-server:latest
+# 两套产物：
+#   1. 二进制版（job: binary）→ lfdd-server-bin → lfdd-server-linux-amd64.tar.gz
+#      解压后直接运行 ./lfdd，配置/数据库自动生成在运行目录的 data/ 下
+#   2. 镜像版（job: image）→ lfdd-server-image → lfdd-server.tar，内含镜像 lfdd-server:latest
+#      docker load -i lfdd-server.tar && docker run -d -p 9081:9081 -v lfdd-data:/app/data lfdd-server:latest
 # 触发：手动运行、推送 v* 标签、main 分支上 server 目录变更。
 on:
   workflow_dispatch:
@@ -16,7 +18,36 @@ on:
       - ".github/workflows/server.yml"
 
 jobs:
-  build:
+  # 非镜像版本：纯 Go 二进制（CGO 编译，依赖系统 glibc，Alpine 需用镜像版）
+  binary:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+
+      - name: 编译二进制
+        working-directory: server
+        run: |
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
+            go build -trimpath -ldflags="-s -w" -o "$RUNNER_TEMP/lfdd" .
+
+      - name: 打包
+        run: |
+          chmod +x "$RUNNER_TEMP/lfdd"
+          tar -czf "$RUNNER_TEMP/lfdd-server-linux-amd64.tar.gz" -C "$RUNNER_TEMP" lfdd
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lfdd-server-bin
+          path: ${{ runner.temp }}/lfdd-server-linux-amd64.tar.gz
+          if-no-files-found: error
+
+  # 镜像版本
+  image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
