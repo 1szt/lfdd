@@ -14,6 +14,10 @@ RUN go mod download
 
 COPY . .
 
+# 老版本 go-sqlite3 的 sqlite3-binding.c 使用 glibc 的 pread64/pwrite64/off64_t，
+# musl（Alpine）默认不暴露这些 LFS64 符号，必须显式开启该宏才能编译
+ENV CGO_CFLAGS="-D_LARGEFILE64_SOURCE"
+
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
 RUN CGO_ENABLED=1 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
