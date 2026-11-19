@@ -130,27 +130,30 @@
                 </div>
                 <!-- 加减按钮（大号）：数量即时算进购物车 -->
                 <div v-if="g.stock !== 0" class="qty-ctrl">
-                  <template v-if="lineQty(g.id) > 0">
-                    <q-btn
-                      round
-                      dense
-                      color="primary"
-                      class="sub-btn"
-                      aria-label="减少"
-                      @click="changeQty(g, -1)"
-                    >
-                      <q-icon name="remove" size="18px" />
-                    </q-btn>
-                    <q-input
-                      :model-value="lineQty(g.id)"
-                      type="number"
-                      dense
-                      borderless
-                      class="qty-input"
-                      aria-label="修改数量"
-                      @change="onQtyInput(g, $event)"
-                    />
-                  </template>
+                  <q-btn
+                    round
+                    dense
+                    color="primary"
+                    class="sub-btn"
+                    :class="{ 'qty-placeholder': lineQty(g.id) <= 0 }"
+                    :tabindex="lineQty(g.id) > 0 ? 0 : -1"
+                    aria-label="减少"
+                    @click="changeQty(g, -1)"
+                  >
+                    <q-icon name="remove" size="18px" />
+                  </q-btn>
+                  <q-input
+                    :model-value="lineQty(g.id)"
+                    type="number"
+                    dense
+                    borderless
+                    class="qty-input"
+                    :class="{ 'qty-placeholder': lineQty(g.id) <= 0 }"
+                    :tabindex="lineQty(g.id) > 0 ? 0 : -1"
+                    :aria-hidden="lineQty(g.id) <= 0"
+                    aria-label="修改数量"
+                    @change="onQtyInput(g, $event)"
+                  />
                   <q-btn
                     round
                     dense
@@ -647,6 +650,12 @@ onBeforeUnmount(() => {
     width: 32px;
     height: 32px;
   }
+}
+
+/* 未加入购物车时「−」和数量隐藏但保留占位，浮现时不会引起位移 */
+.qty-placeholder {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 /* 数量输入框：直接改数字（0 = 移除），隐藏数字框 spinner */
