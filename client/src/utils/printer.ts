@@ -107,12 +107,13 @@ export function buildOrderPayload(o: ReceiptOrder, encoding: PrinterEncoding = "
     "--------------------------------"
   ];
   for (const it of o.items) {
-    const label = it.spec ? `${it.name}(${it.spec})` : it.name;
+    // 名称不打印规格（单位），只留商品名
+    const label = it.name;
     // 明细：价格固定在右侧列（数量x单价=小计，单价一位小数）；
     // 名称过长时折行续打（文字可错位），价格列不错位
     const unit = (it.price / 100).toFixed(1);
     const subtotal = ((it.price * it.qty) / 100).toFixed(1);
-    const right = padStartW(`${it.qty}x${unit}=`, 9) + padStartW(subtotal, 7);
+    const right = padStartW(`${it.qty} x${unit}=`, 9) + padStartW(subtotal, 6);
     const nameW = Math.max(32 - displayWidth(right), 4);
     const segs = wrapByWidth(label, nameW);
     for (let j = 0; j < segs.length; j++) {
