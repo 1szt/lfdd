@@ -231,52 +231,77 @@
         <q-icon name="chevron_right" size="22px" />
       </div>
     </div>
-    <!-- 商品图片/视频查看：点击图片放大，可左右滑动切换 -->
-    <q-dialog v-model="viewerOpen" maximized>
-      <div class="viewer-wrap">
+    <!-- 商品图片/视频查看：自制全屏预览，支持左右滑动切换 -->
+    <div v-if="viewerOpen" class="viewer-wrap">
+      <q-btn
+        round
+        dense
+        flat
+        icon="close"
+        color="white"
+        class="viewer-close"
+        aria-label="关闭"
+        @click="closeViewer"
+      />
+      <div
+        ref="viewerScroller"
+        class="viewer-scroller"
+        @scroll.passive="onViewerScroll"
+        @pointerdown="onViewerPointerDown"
+        @pointermove="onViewerPointerMove"
+        @pointerup="onViewerPointerUp"
+        @pointerleave="onViewerPointerUp"
+      >
+        <div v-for="m in viewerMedia" :key="m.hash" class="viewer-slide">
+          <img
+            v-if="m.type === 'image'"
+            :src="imgSrc(m.hash)"
+            alt=""
+            class="viewer-media"
+            draggable="false"
+          />
+          <video
+            v-else
+            :src="imgSrc(m.hash)"
+            controls
+            playsinline
+            preload="metadata"
+            class="viewer-media"
+          />
+        </div>
+      </div>
+      <template v-if="viewerMedia.length > 1">
         <q-btn
           round
           dense
           flat
-          icon="close"
+          icon="chevron_left"
           color="white"
-          class="viewer-close"
-          aria-label="关闭"
-          v-close-popup
+          class="viewer-arrow viewer-arrow-left"
+          aria-label="上一张"
+          @click="goToMedia(viewerIndex - 1)"
         />
-        <q-carousel
-          v-model="viewerIndex"
-          swipeable
-          animated
-          arrows
-          navigation
-          infinite
-          dark
-          class="viewer-carousel"
-        >
-          <q-carousel-slide
+        <q-btn
+          round
+          dense
+          flat
+          icon="chevron_right"
+          color="white"
+          class="viewer-arrow viewer-arrow-right"
+          aria-label="下一张"
+          @click="goToMedia(viewerIndex + 1)"
+        />
+        <div class="viewer-dots">
+          <span
             v-for="(m, i) in viewerMedia"
             :key="m.hash"
-            :name="i"
-            class="viewer-slide"
-          >
-            <img
-              v-if="m.type === 'image'"
-              :src="imgSrc(m.hash)"
-              alt=""
-              class="viewer-media"
-            />
-            <video
-              v-else
-              :src="imgSrc(m.hash)"
-              controls
-              playsinline
-              class="viewer-media"
-            />
-          </q-carousel-slide>
-        </q-carousel>
-      </div>
-    </q-dialog>
+            class="viewer-dot"
+            :class="{ active: i === viewerIndex }"
+            @click="goToMedia(i)"
+          />
+        </div>
+      </template>
+    </div>
   </q-page>
 </template>
 
@@ -434,10 +459,11 @@ async function loadMe() {
   }
 }
 
-// ================= 图片/视频查看器（点击放大，左右滑动切换） =================
+// ================= 图片/视频查看器（自制全屏预览，左右滑动切换） =================
 const viewerOpen = ref(false);
 const viewerIndex = ref(0);
 const viewerMedia = ref<GoodsMedia[]>([]);
+const viewerScroller = ref<HTMLElement | null>(null);
 
 function goodsMediaOf(g: GoodsItem): GoodsMedia[] {
   if (g.media && g.media.length) return g.media;
@@ -452,6 +478,86 @@ function openViewer(g: GoodsItem) {
   const firstImageIdx = list.findIndex(m => m.type === "image");
   viewerIndex.value = firstImageIdx >= 0 ? firstImageIdx : 0;
   viewerOpen.value = true;
+  // 打开后立即滚到目标项（等 DOM 渲染完）
+  nextTick(() => {
+    const el = viewerScroller.value;
+    if (el) el.scrollLeft = viewerIndex.value * el.clientWidth;
+  });
+}
+
+function closeViewer() {
+  viewerOpen.value = false;
+  pauseViewerVideos();
+}
+
+// 离开当前项时暂停视频，避免后台继续出声
+function pauseViewerVideos() {
+  viewerScroller.value?.querySelectorAll("video").forEach(v => v.pause());
+}
+
+// 滚动结束按位置换算当前索引（用于圆点高亮）
+function onViewerScroll() {
+  const el = viewerScroller.value;
+  if (!el || el.clientWidth === 0) return;
+  const idx = Math.round(el.scrollLeft / el.clientWidth);
+  if (idx !== viewerIndex.value) viewerIndex.value = idx;
+}
+
+// 箭头/圆点切换：平滑滚动到指定项
+function goToMedia(i: number) {
+  const n = viewerMedia.value.length;
+  if (n === 0) return;
+  const idx = Math.min(Math.max(i, 0), n - 1);
+  viewerIndex.value = idx;
+  const el = viewerScroller.value;
+  if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
+}
+
+// 切到别的图片/视频时，暂停原来正在播放的视频
+watch(viewerIndex, () => pauseViewerVideos());
+
+// 桌面鼠标拖拽滑动（触屏走浏览器原生横向滚动，无需额外处理）
+let mouseDrag = false;
+let mouseStartX = 0;
+let mouseStartLeft = 0;
+
+function onViewerPointerDown(e: PointerEvent) {
+  if (e.pointerType !== "mouse") return;
+  if ((e.target as HTMLElement).closest("video")) return; // 不抢视频控件
+  const el = viewerScroller.value;
+  if (!el || viewerMedia.value.length < 2) return;
+  mouseDrag = true;
+  mouseStartX = e.clientX;
+  mouseStartLeft = el.scrollLeft;
+  el.style.scrollSnapType = "none"; // 拖动时关闭吸附，避免吸附抖动
+}
+
+function onViewerPointerMove(e: PointerEvent) {
+  if (!mouseDrag) return;
+  const el = viewerScroller.value;
+  if (!el) return;
+  el.scrollLeft = mouseStartLeft - (e.clientX - mouseStartX);
+}
+
+function onViewerPointerUp() {
+  if (!mouseDrag) return;
+  mouseDrag = false;
+  const el = viewerScroller.value;
+  if (!el) return;
+  el.style.scrollSnapType = "";
+  goToMedia(Math.round(el.scrollLeft / el.clientWidth));
+}
+
+// 键盘：Esc 关闭，左右方向键切换
+function onViewerKey(e: KeyboardEvent) {
+  if (!viewerOpen.value) return;
+  if (e.key === "Escape") {
+    closeViewer();
+  } else if (e.key === "ArrowLeft") {
+    goToMedia(viewerIndex.value - 1);
+  } else if (e.key === "ArrowRight") {
+    goToMedia(viewerIndex.value + 1);
+  }
 }
 
 function goCart() {
@@ -553,6 +659,7 @@ function selectMenu(id: string) {
 }
 
 onMounted(async () => {
+  window.addEventListener("keydown", onViewerKey);
   await Promise.all([loadMenus(), loadGoods(true), loadMe()]);
   // 数据渲染后恢复上次的滚动位置
   await nextTick();
@@ -561,6 +668,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onViewerKey);
   pagePos.activeMenuId = activeMenuId.value;
   pagePos.side = sideRef.value?.scrollTop ?? 0;
   pagePos.main = mainRef.value?.scrollTop ?? 0;
@@ -674,30 +782,93 @@ onBeforeUnmount(() => {
 .viewer-wrap {
   position: fixed;
   inset: 0;
+  z-index: 9999;
   background: #000;
+  overflow: hidden;
 }
 
 .viewer-close {
   position: absolute;
   top: 12px;
   right: 12px;
-  z-index: 2;
+  z-index: 3;
 }
 
-.viewer-carousel {
+/* 原生横向滚动 + 吸附：触屏可直接左右滑，鼠标拖动见脚本 */
+.viewer-scroller {
+  display: flex;
+  width: 100%;
   height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  cursor: grab;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 .viewer-slide {
+  flex: 0 0 100%;
+  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
 }
 
 .viewer-media {
   max-width: 100%;
   max-height: 100%;
   object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.viewer-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.viewer-arrow-left {
+  left: 8px;
+}
+
+.viewer-arrow-right {
+  right: 8px;
+}
+
+.viewer-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.viewer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: width 0.2s, background 0.2s;
+
+  &.active {
+    width: 16px;
+    background: #fff;
+  }
 }
 
 .sold-out {
