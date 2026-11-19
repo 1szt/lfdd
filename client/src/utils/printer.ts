@@ -103,7 +103,7 @@ function padStartW(s: string, width: number): string {
 // 组装订单小票：初始化 + 居中放大标题 + 单号/时间 + 明细 + 合计 + 走纸切纸
 export function buildOrderPayload(o: ReceiptOrder, encoding: PrinterEncoding = "gbk"): number[] {
   const lines: string[] = [
-    `${o.orderNo}`,
+    `吉祥${o.orderNo}`,
     "--------------------------------"
   ];
   for (const it of o.items) {

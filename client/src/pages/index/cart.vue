@@ -262,11 +262,13 @@ async function checkout() {
     font-size: 15px;
     font-weight: 700;
     padding: 0;
+    appearance: textfield;
     -moz-appearance: textfield;
   }
 
   :deep(input::-webkit-outer-spin-button),
   :deep(input::-webkit-inner-spin-button) {
+    appearance: none;
     -webkit-appearance: none;
     margin: 0;
   }

@@ -668,11 +668,13 @@ onBeforeUnmount(() => {
     font-weight: 700;
     color: var(--q-primary);
     padding: 0;
+    appearance: textfield;
     -moz-appearance: textfield;
   }
 
   :deep(input::-webkit-outer-spin-button),
   :deep(input::-webkit-inner-spin-button) {
+    appearance: none;
     -webkit-appearance: none;
     margin: 0;
   }
