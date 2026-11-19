@@ -33,7 +33,7 @@ func Start() {
 	env.Add("LFDD_DB_USER", "", "数据库用户名")
 	env.Add("LFDD_DB_PASSWORD", "", "数据库密码")
 
-	env.Add("LFDD_UPLOAD_PATH", "data/upload", "图片上传存储目录")
+	env.Add("LFDD_UPLOAD_PATH", "data/upload", "图片/视频上传存储目录")
 
 	log.Println("✅ [Env] 配置文件 初始化完成")
 }

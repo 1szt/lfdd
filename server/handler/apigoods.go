@@ -169,8 +169,8 @@ func (h *ApiGoodsHandler) Sort(c *gin.Context) {
 	})
 }
 
-// Upload 商品媒体上传（multipart 字段名 file；图片 ≤5MB jpg/png/gif/webp，视频 ≤50MB mp4/mov/webm）
-// 文件按内容 SHA-256 哈希命名存储（无后缀、同内容去重），返回 {"hash":"{sha256}"}
+// Upload 商品媒体上传（multipart 字段名 file；图片 ≤20MB jpg/png/gif/webp，视频 ≤50MB mp4/mov/webm）
+// 图片由 Go 压缩为 WebP（≤1MB），视频原样保存；文件按内容 SHA-256 哈希命名存储（无后缀、同内容去重）
 // 数据库 goods.media 只存哈希，访问走 GET /api/upload/{hash}（类型按内容嗅探）
 func (h *ApiGoodsHandler) Upload(c *gin.Context) {
 	fh, err := c.FormFile("file")

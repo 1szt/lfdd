@@ -1013,7 +1013,7 @@
               outlined
               dense
               multiple
-              label="上传图片/视频（可多选，≤5MB 图片 / ≤50MB 视频）"
+              label="上传图片/视频（图片自动压缩为 WebP ≤1MB，视频原样保存）"
               accept="image/*,video/*"
               :loading="imgUploading"
               @update:model-value="uploadGoodsMedia"
