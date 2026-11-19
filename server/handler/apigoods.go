@@ -9,6 +9,16 @@ import (
 type ApiGoodsHandler struct {
 }
 
+// isAdminRequest 当前请求是否来自管理员（游客 / 未登录返回 false）
+func isAdminRequest(c *gin.Context) bool {
+	uid := c.GetInt64("userID")
+	if uid == 0 {
+		return false
+	}
+	me, err := service.GetMe(service.GetMeInput{UserID: uid})
+	return err == nil && me.Role == 2
+}
+
 // Sidebar 商品侧边菜单（菜单/分类列表，按 sort 升序）
 func (h *ApiGoodsHandler) Sidebar(c *gin.Context) {
 	out, err := service.GetGoodsSidebar(service.GetGoodsSidebarInput{})
@@ -44,6 +54,7 @@ func (h *ApiGoodsHandler) Page(c *gin.Context) {
 		Page:     req.Page,
 		PageSize: req.PageSize,
 		All:      req.All == 1,
+		WithCost: isAdminRequest(c), // 进价仅管理员可见
 	})
 	if err != nil {
 		c.JSON(500, gin.H{
@@ -57,7 +68,7 @@ func (h *ApiGoodsHandler) Page(c *gin.Context) {
 
 // All 全部上架商品（前端一次性拉取后本地模糊搜索）
 func (h *ApiGoodsHandler) All(c *gin.Context) {
-	out, err := service.GetGoodsAll(service.GetGoodsAllInput{})
+	out, err := service.GetGoodsAll(service.GetGoodsAllInput{WithCost: isAdminRequest(c)})
 	if err != nil {
 		c.JSON(500, gin.H{
 			"message": "服务器内部错误",

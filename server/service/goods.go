@@ -48,6 +48,7 @@ type GoodsView struct {
 	Name   string `json:"name"`
 	Alias  string `json:"alias"` // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
 	Price  int    `json:"price"`
+	Cost   int    `json:"cost,omitempty"` // 进价（分），仅管理员请求时返回
 	Spec   string `json:"spec"`
 	Stock  int    `json:"stock"`
 	Image  string `json:"image"`
@@ -60,7 +61,9 @@ type GetGoodsPageInput struct {
 	Page     int   `json:"page"`           // 页码，从 1 开始
 	PageSize int   `json:"page_size"`      // 每页条数
 	All      bool  `json:"all"`            // true = 不过滤上下架（管理端用）
+	WithCost bool  `json:"-"`              // true = 返回进价（仅管理员）
 }
+
 type GetGoodsPageOutput struct {
 	Total    int64       `json:"total"`
 	Page     int         `json:"page"`
@@ -109,7 +112,7 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 
 	o.List = make([]GoodsView, 0, len(goods))
 	for _, g := range goods {
-		o.List = append(o.List, toGoodsView(g))
+		o.List = append(o.List, toGoodsView(g, i.WithCost))
 	}
 	o.Page = i.Page
 	o.PageSize = i.PageSize
@@ -117,7 +120,9 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 }
 
 // ------------------------ GetGoodsAll 全部上架商品 ------------------------
-type GetGoodsAllInput struct{}
+type GetGoodsAllInput struct {
+	WithCost bool `json:"-"` // true = 返回进价（仅管理员）
+}
 type GetGoodsAllOutput struct {
 	List []GoodsView `json:"list"`
 }
@@ -130,17 +135,21 @@ func GetGoodsAll(i GetGoodsAllInput) (o GetGoodsAllOutput, err error) {
 	}
 	o.List = make([]GoodsView, 0, len(goods))
 	for _, g := range goods {
-		o.List = append(o.List, toGoodsView(g))
+		o.List = append(o.List, toGoodsView(g, i.WithCost))
 	}
 	return o, nil
 }
 
-// toGoodsView 模型转视图，集中一处避免各接口字段遗漏
-func toGoodsView(g model.Goods) GoodsView {
-	return GoodsView{
+// toGoodsView 模型转视图，集中一处避免各接口字段遗漏；withCost=false 时不返回进价
+func toGoodsView(g model.Goods, withCost bool) GoodsView {
+	v := GoodsView{
 		ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
 		Spec: g.Spec, Stock: g.Stock, Image: g.Image, Sort: g.Sort, Status: g.Status,
 	}
+	if withCost {
+		v.Cost = g.Cost
+	}
+	return v
 }
 
 // ------------------------ CreateGoods 新建商品 ------------------------
@@ -149,6 +158,7 @@ type CreateGoodsInput struct {
 	Name   string `json:"name"`
 	Alias  string `json:"alias"` // 别名（多个用逗号分隔），可空
 	Price  int    `json:"price"` // 单位：分
+	Cost   int    `json:"cost"`  // 进价，单位：分
 	Spec   string `json:"spec"`
 	Stock  int    `json:"stock"` // -1 表示不限库存
 	Image  string `json:"image"`
@@ -167,6 +177,9 @@ func CreateGoods(i CreateGoodsInput) (o CreateGoodsOutput, err error) {
 	if i.Price < 0 {
 		return o, errors.New("商品价格不能为负数")
 	}
+	if i.Cost < 0 {
+		return o, errors.New("商品进价不能为负数")
+	}
 	if i.Status != 0 && i.Status != 1 {
 		return o, errors.New("上架状态只能是 0 或 1")
 	}
@@ -175,8 +188,8 @@ func CreateGoods(i CreateGoodsInput) (o CreateGoodsOutput, err error) {
 	}
 
 	g := model.Goods{
-		MenuID: i.MenuID, Name: i.Name, Alias: normalizeAlias(i.Alias), Price: i.Price, Spec: i.Spec,
-		Stock: i.Stock, Image: i.Image, Status: i.Status, Sort: i.Sort,
+		MenuID: i.MenuID, Name: i.Name, Alias: normalizeAlias(i.Alias), Price: i.Price, Cost: i.Cost,
+		Spec: i.Spec, Stock: i.Stock, Image: i.Image, Status: i.Status, Sort: i.Sort,
 	}
 	if err = db.DB.Create(&g).Error; err != nil {
 		return o, err
@@ -193,6 +206,7 @@ type UpdateGoodsInput struct {
 	Name   string `json:"name"`
 	Alias  string `json:"alias"` // 别名（多个用逗号分隔），可空
 	Price  int    `json:"price"` // 单位：分
+	Cost   int    `json:"cost"`  // 进价，单位：分
 	Spec   string `json:"spec"`
 	Stock  int    `json:"stock"`
 	Image  string `json:"image"`
@@ -211,6 +225,9 @@ func UpdateGoods(i UpdateGoodsInput) (o UpdateGoodsOutput, err error) {
 	if i.Price < 0 {
 		return o, errors.New("商品价格不能为负数")
 	}
+	if i.Cost < 0 {
+		return o, errors.New("商品进价不能为负数")
+	}
 	if i.Status != 0 && i.Status != 1 {
 		return o, errors.New("上架状态只能是 0 或 1")
 	}
@@ -223,6 +240,7 @@ func UpdateGoods(i UpdateGoodsInput) (o UpdateGoodsOutput, err error) {
 		"name":    i.Name,
 		"alias":   normalizeAlias(i.Alias),
 		"price":   i.Price,
+		"cost":    i.Cost,
 		"spec":    i.Spec,
 		"stock":   i.Stock,
 		"image":   i.Image,

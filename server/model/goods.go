@@ -19,6 +19,9 @@ type Goods struct {
 	// 商品价格，单位：分（1850 = 18.50 元），避免浮点精度问题
 	Price int `json:"price" gorm:"not null;default:0"`
 
+	// 商品进价（成本价），单位：分；仅管理员可见
+	Cost int `json:"cost" gorm:"not null;default:0"`
+
 	// 商品规格（如"大杯/中杯"、"500g"），可空
 	Spec string `json:"spec" gorm:"size:128"`
 

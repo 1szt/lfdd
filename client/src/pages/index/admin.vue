@@ -985,6 +985,15 @@
               dense
             />
             <q-input
+              v-model="goodsForm.costYuan"
+              label="进价（元）"
+              type="number"
+              step="0.01"
+              min="0"
+              outlined
+              dense
+            />
+            <q-input
               v-model="goodsForm.spec"
               label="规格（如：大杯 / 500g，可空）"
               outlined
@@ -1130,6 +1139,7 @@ interface AdminGoods {
   name: string;
   alias: string; // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
   price: number; // 分
+  cost?: number; // 进价，分（仅管理员接口返回）
   spec: string;
   stock: number;
   image: string;
@@ -1333,6 +1343,7 @@ const goodsForm = reactive({
   name: "",
   alias: "",
   priceYuan: "0",
+  costYuan: "0",
   spec: "",
   stock: "-1",
   image: "",
@@ -1447,6 +1458,7 @@ function openGoods(g?: AdminGoods) {
     goodsForm.name = g.name;
     goodsForm.alias = g.alias || "";
     goodsForm.priceYuan = (g.price / 100).toFixed(2);
+    goodsForm.costYuan = ((g.cost ?? 0) / 100).toFixed(2);
     goodsForm.spec = g.spec;
     goodsForm.stock = String(g.stock);
     goodsForm.image = g.image;
@@ -1459,6 +1471,7 @@ function openGoods(g?: AdminGoods) {
     goodsForm.name = "";
     goodsForm.alias = "";
     goodsForm.priceYuan = "0";
+    goodsForm.costYuan = "0";
     goodsForm.spec = "";
     goodsForm.stock = "-1";
     goodsForm.image = "";
@@ -1472,6 +1485,7 @@ function openGoods(g?: AdminGoods) {
 async function saveGoods() {
   const name = goodsForm.name.trim();
   const price = Math.round(parseFloat(goodsForm.priceYuan || "0") * 100);
+  const cost = Math.round(parseFloat(goodsForm.costYuan || "0") * 100);
   const stock = parseInt(goodsForm.stock, 10);
 
   if (!name) {
@@ -1486,6 +1500,10 @@ async function saveGoods() {
     $q.notify({ message: "价格无效", color: "negative" });
     return;
   }
+  if (!Number.isFinite(cost) || cost < 0) {
+    $q.notify({ message: "进价无效", color: "negative" });
+    return;
+  }
   if (!Number.isInteger(stock)) {
     $q.notify({ message: "库存需为整数（-1 = 不限）", color: "negative" });
     return;
@@ -1498,6 +1516,7 @@ async function saveGoods() {
       name,
       alias: goodsForm.alias.trim(),
       price,
+      cost,
       spec: goodsForm.spec.trim(),
       stock,
       image: goodsForm.image.trim(),

@@ -102,14 +102,35 @@
         </div>
 
         <template v-else>
-          <div v-for="g in displayGoods" :key="g.id" class="goods-card">
+          <div v-for="(g, idx) in displayGoods" :key="g.id" class="goods-card">
             <div class="goods-img">
               <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
               <q-icon v-else name="shopping_bag" size="32px" color="grey-5" />
               <div v-if="g.stock === 0" class="sold-out">售罄</div>
             </div>
             <div class="col">
-              <div class="goods-name text-weight-medium">{{ g.name }}</div>
+              <div class="row items-start no-wrap goods-name-row">
+                <div class="goods-name text-weight-medium col">{{ g.name }}</div>
+                <!-- 管理员：第一行小眼睛开启进价，点进价关闭并复现小眼睛 -->
+                <div
+                  v-if="isAdmin"
+                  class="goods-cost-toggle"
+                  :class="{ 'cursor-pointer': idx === 0 }"
+                  @click="idx === 0 && (showCost = !showCost)"
+                >
+                  <q-icon
+                    v-if="idx === 0 && !showCost"
+                    name="visibility"
+                    size="16px"
+                    class="cost-eye"
+                  />
+                  <span
+                    v-else-if="showCost"
+                    class="goods-cost text-caption"
+                    >进 ¥{{ fmtPrice(g.cost ?? 0) }}</span
+                  >
+                </div>
+              </div>
               <div v-if="g.spec" class="text-caption text-grey-7 ellipsis">{{
                 g.spec
               }}</div>
@@ -229,6 +250,7 @@ import {
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { searchGoods } from "../../utils/search";
+import { hasToken } from "../../utils/guest";
 import {
   cartCount,
   cartTotal,
@@ -253,6 +275,7 @@ interface GoodsItem {
   name: string;
   alias?: string; // 别名（多个用逗号分隔），本地搜索时与名称一起匹配
   price: number; // 单位：分（1850 = 18.50 元）
+  cost?: number; // 进价，单位：分（仅管理员接口返回）
   spec: string;
   stock: number; // -1 = 不限库存，0 = 售罄
   image: string;
@@ -337,6 +360,20 @@ function describeError(e: unknown) {
 
 const $q = useQuasar();
 const router = useRouter();
+
+// ================= 进价（仅管理员可见，第一行小眼睛切换） =================
+const isAdmin = ref(false);
+const showCost = ref(false);
+
+async function loadMe() {
+  if (!hasToken()) return;
+  try {
+    const data = await fetchJson("/api/user/me");
+    isAdmin.value = Number(data?.role) === 2;
+  } catch {
+    isAdmin.value = false;
+  }
+}
 
 function goCart() {
   void router.push("/cart");
@@ -470,7 +507,7 @@ function selectMenu(id: string) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadMenus(), loadGoods(true)]);
+  await Promise.all([loadMenus(), loadGoods(true), loadMe()]);
   // 数据渲染后恢复上次的滚动位置
   await nextTick();
   if (sideRef.value) sideRef.value.scrollTop = pagePos.side;
@@ -595,6 +632,31 @@ onBeforeUnmount(() => {
 
 .goods-name {
   font-size: 14px;
+}
+
+/* 管理员：进价展示与第一行小眼睛开关 */
+.goods-name-row {
+  gap: 8px;
+}
+
+.goods-cost-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+  /* 再上移一点，贴近卡片顶部 */
+  margin-top: -7px;
+}
+
+.cost-eye {
+  color: #999;
+}
+
+.goods-cost {
+  flex: 0 0 auto;
+  color: #999;
+  white-space: nowrap;
+  line-height: 1.2;
 }
 
 /* 价格行 + 加减区：窄屏换行时加减区依然固定靠右 */
