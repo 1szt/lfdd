@@ -15,6 +15,30 @@
       />
     </div>
 
+    <!-- AI 点单：与首页输入内容同步，匹配后直接加入购物车 -->
+    <div class="ai-bar row items-center q-gutter-sm q-px-md q-pb-sm">
+      <q-input
+        v-model="aiText"
+        outlined
+        dense
+        class="col"
+        placeholder="AI 点单：如「两杯柠檬水和一个冰淇淋」"
+        :disable="aiLoading"
+        @keyup.enter="aiMatch"
+      >
+        <template #prepend>
+          <q-icon name="auto_awesome" color="primary" />
+        </template>
+      </q-input>
+      <q-btn
+        color="primary"
+        label="点单"
+        unelevated
+        :loading="aiLoading"
+        @click="aiMatch"
+      />
+    </div>
+
     <!-- 空态 -->
     <div
       v-if="cart.length === 0"
@@ -134,6 +158,7 @@ import {
   removeLine,
   setQty
 } from "../../utils/cart";
+import { aiLoading, aiOrder, aiText } from "../../utils/aiOrder";
 
 const $q = useQuasar();
 const router = useRouter();
@@ -145,6 +170,24 @@ function pageStyle(offset: number, height: number) {
     return { height: `${height - offset}px` };
   }
   return { height: offset !== 0 ? `calc(100vh - ${offset}px)` : "100vh" };
+}
+
+// AI 点单：输入内容与首页共享（utils/aiOrder），匹配结果直接加入购物车
+async function aiMatch() {
+  if (!aiText.value.trim() || aiLoading.value) return;
+  try {
+    const count = await aiOrder();
+    if (count === 0) {
+      $q.notify({ message: "没有匹配到商品，换个说法试试", color: "orange" });
+      return;
+    }
+    $q.notify({ message: `已加入 ${count} 种商品`, color: "positive" });
+  } catch (e) {
+    $q.notify({
+      message: e instanceof Error ? e.message : String(e),
+      color: "negative"
+    });
+  }
 }
 
 // 数量输入框直接改数字：0/非法 → 移除该行，超库存由 setQty 封顶

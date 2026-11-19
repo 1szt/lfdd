@@ -313,6 +313,7 @@ import {
   menuQty,
   setQty
 } from "../../utils/cart";
+import { aiLoading, aiOrder, aiText } from "../../utils/aiOrder";
 // 购物车数据在 utils/cart.ts（模块级共享，购物车页同用一份）
 
 // 与后端 service 对齐的接口返回结构
@@ -463,54 +464,21 @@ function onQtyInput(g: GoodsItem, v: string | number) {
   setQty(g, Number.isFinite(n) ? n : 0);
 }
 
-// ================= AI 点单（后端大模型匹配商品） =================
-const aiText = ref("");
-const aiLoading = ref(false);
-
-interface AiMatchedGoods {
-  id: string;
-  name: string;
-  price: number;
-  spec: string;
-  stock: number;
-  image: string;
-  qty: number;
-}
-
+// ================= AI 点单（状态与购物车页共享，见 utils/aiOrder） =================
 async function aiMatch() {
-  const text = aiText.value.trim();
-  if (!text || aiLoading.value) return;
-  aiLoading.value = true;
+  if (!aiText.value.trim() || aiLoading.value) return;
   try {
-    const res = await fetch("/api/goods/match", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `匹配失败（${res.status}）`);
-
-    const list: AiMatchedGoods[] = Array.isArray(data.list) ? data.list : [];
-    if (list.length === 0) {
+    const count = await aiOrder();
+    if (count === 0) {
       $q.notify({ message: "没有匹配到商品，换个说法试试", color: "orange" });
       return;
     }
-    // 按返回的数量逐个加入（changeQty 内部会按库存封顶）
-    for (const item of list) {
-      const { qty, ...goods } = item;
-      for (let n = 0; n < qty; n++) {
-        changeQty(goods, 1);
-      }
-    }
-    aiText.value = "";
     $q.notify({
-      message: `已加入 ${list.length} 种商品`,
+      message: `已加入 ${count} 种商品`,
       color: "positive"
     });
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
-  } finally {
-    aiLoading.value = false;
   }
 }
 
