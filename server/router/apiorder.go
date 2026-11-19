@@ -17,4 +17,6 @@ func apiOrderRouter() {
 	group.POST("/void", middleware.IdentityGuard(), apiOrderHandler.Void)
 	group.POST("/delete", middleware.IdentityGuard(), apiOrderHandler.Delete)
 	group.GET("/page", middleware.IdentityGuard(), apiOrderHandler.Page)
+	// 订单搜索（单号/日期）仅管理员可用
+	group.GET("/search", middleware.RoleGuard(), apiOrderHandler.Search)
 }

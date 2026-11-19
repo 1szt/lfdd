@@ -23,6 +23,41 @@
       />
     </div>
 
+    <!-- 管理员：服务端搜索（按单号 / 日期） -->
+    <div v-if="isAdmin" class="row items-center q-gutter-xs q-px-md q-pb-sm">
+      <q-input
+        v-model="searchKeyword"
+        dense
+        outlined
+        clearable
+        placeholder="按单号搜索"
+        class="col"
+        @keyup.enter="loadOrders(true)"
+        @clear="onKeywordClear"
+      >
+        <template #prepend>
+          <q-icon name="search" />
+        </template>
+      </q-input>
+      <q-input
+        v-model="searchDate"
+        dense
+        outlined
+        clearable
+        type="date"
+        class="col"
+        @update:model-value="loadOrders(true)"
+        @clear="onDateClear"
+      />
+      <q-btn
+        dense
+        unelevated
+        color="primary"
+        label="搜索"
+        @click="loadOrders(true)"
+      />
+    </div>
+
     <!-- 空态 -->
     <div
       v-if="orders.length === 0 && !loading"
@@ -30,7 +65,13 @@
     >
       <q-icon name="receipt_long" size="64px" color="grey-4" />
       <div class="text-body1 text-grey-7 q-mt-md">
-        {{ statusTab === "0" ? "没有未结单的订单" : "没有已结单的订单" }}
+        {{
+          searchActive
+            ? "没有符合条件的订单"
+            : statusTab === "0"
+              ? "没有未结单的订单"
+              : "没有已结单的订单"
+        }}
       </div>
       <q-btn
         v-if="statusTab === '0'"
@@ -387,6 +428,39 @@ const router = useRouter();
 // 游客（未登录）：不显示/不使用结单、打印、改价、废单，也看不到已结单
 const isGuest = isGuestMode();
 
+// 管理员（role=2）才能用服务端搜索（按单号 / 日期）
+const isAdmin = ref(false);
+const searchKeyword = ref("");
+const searchDate = ref("");
+const searchActive = computed(
+  () =>
+    isAdmin.value &&
+    ((searchKeyword.value || "").trim() !== "" || searchDate.value !== "")
+);
+
+// 清空单个搜索条件（Quasar clearable 会把 v-model 置为 null，需显式复位后重查）
+function onKeywordClear() {
+  searchKeyword.value = "";
+  void loadOrders(true);
+}
+function onDateClear() {
+  searchDate.value = "";
+  void loadOrders(true);
+}
+
+// 判断是否管理员：搜索入口仅对其展示，后端搜索接口另有 RoleGuard 校验
+async function loadMe() {
+  if (isGuest) return;
+  try {
+    const res = await fetch("/api/user/me");
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    isAdmin.value = Number(data?.role) === 2;
+  } catch {
+    isAdmin.value = false;
+  }
+}
+
 interface OrderItem {
   goods_id: string;
   name: string;
@@ -447,9 +521,20 @@ async function loadOrders(reset: boolean) {
   try {
     // 游客只看未结单（后端也会强制）
     const status = isGuest ? "0" : statusTab.value;
-    const res = await fetch(
-      `/api/order/page?page=${page.value}&page_size=${PAGE_SIZE}&status=${status}`
-    );
+    const params = new URLSearchParams({
+      page: String(page.value),
+      page_size: String(PAGE_SIZE),
+      status
+    });
+    // 管理员：附带搜索条件走服务端搜索接口；其他用户仍走分页接口
+    let url = "/api/order/page";
+    if (isAdmin.value) {
+      url = "/api/order/search";
+      const kw = (searchKeyword.value || "").trim();
+      if (kw) params.set("keyword", kw);
+      if (searchDate.value) params.set("date", searchDate.value);
+    }
+    const res = await fetch(`${url}?${params.toString()}`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `请求失败（${res.status}）`);
 
@@ -773,7 +858,8 @@ async function printWith(p: SavedPrinter) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadMe();
   void loadOrders(true);
 });
 </script>

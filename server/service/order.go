@@ -352,6 +352,8 @@ type GetOrdersInput struct {
 	PageSize int    `json:"page_size"` // 每页条数
 	Status   int    `json:"status"`    // -1 全部（默认）、0 未结单、1 已结单
 	GuestID  string `json:"-"`         // 游客身份：非空时只返回该游客自己的未结单
+	Keyword  string `json:"keyword"`   // 单号模糊搜索（仅管理员搜索接口使用）
+	Date     string `json:"date"`      // 日期 YYYY-MM-DD（仅管理员搜索接口使用）
 }
 type OrderItemView struct {
 	GoodsID   int64  `json:"goods_id,string"`
@@ -398,6 +400,18 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 		q = q.Where("guest_id = ? AND status = ?", i.GuestID, 0)
 	} else if i.Status == 0 || i.Status == 1 {
 		q = q.Where("status = ?", i.Status)
+	}
+	// 管理员搜索：单号模糊匹配
+	if i.Keyword != "" {
+		q = q.Where("order_no LIKE ?", "%"+i.Keyword+"%")
+	}
+	// 管理员搜索：按当天（本地时区）过滤
+	if i.Date != "" {
+		day, e := time.ParseInLocation("2006-01-02", i.Date, time.Local)
+		if e != nil {
+			return o, errors.New("日期格式应为 YYYY-MM-DD")
+		}
+		q = q.Where("created_at >= ? AND created_at < ?", day, day.Add(24*time.Hour))
 	}
 	if err = q.Count(&o.Total).Error; err != nil {
 		return o, err
