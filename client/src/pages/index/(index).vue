@@ -9,7 +9,12 @@
           @click="selectMenu('0')"
         >
           全部
-          <q-badge v-if="cartCount > 0" floating color="red" :label="cartCount" />
+          <q-badge
+            v-if="cartCount > 0"
+            floating
+            color="red"
+            :label="cartCount"
+          />
         </div>
         <div
           v-for="m in menus"
@@ -19,9 +24,17 @@
           @click="selectMenu(m.id)"
         >
           {{ m.name }}
-          <q-badge v-if="menuQty(m.id) > 0" floating color="red" :label="menuQty(m.id)" />
+          <q-badge
+            v-if="menuQty(m.id) > 0"
+            floating
+            color="red"
+            :label="menuQty(m.id)"
+          />
         </div>
-        <div v-if="menus.length === 0" class="text-caption text-grey-6 q-pa-sm text-center">
+        <div
+          v-if="menus.length === 0"
+          class="text-caption text-grey-6 q-pa-sm text-center"
+        >
           暂无分类
         </div>
       </div>
@@ -78,8 +91,13 @@
           {{ errorMsg }}
         </div>
 
-        <div v-if="loadingGoods || searchLoading" class="state-box text-grey-6">加载中…</div>
-        <div v-else-if="displayGoods.length === 0 && !errorMsg" class="state-box text-grey-6">
+        <div v-if="loadingGoods || searchLoading" class="state-box text-grey-6"
+          >加载中…</div
+        >
+        <div
+          v-else-if="displayGoods.length === 0 && !errorMsg"
+          class="state-box text-grey-6"
+        >
           {{ searchMode ? "没有匹配的商品，换个关键词试试" : "暂无商品" }}
         </div>
 
@@ -92,37 +110,47 @@
             </div>
             <div class="col">
               <div class="goods-name text-weight-medium">{{ g.name }}</div>
-              <div v-if="g.spec" class="text-caption text-grey-7 ellipsis">{{ g.spec }}</div>
-              <div class="row items-center justify-between q-mt-xs">
-                <div class="row items-baseline q-gutter-sm">
-                  <div class="text-negative text-weight-bold">¥{{ fmtPrice(g.price) }}</div>
+              <div v-if="g.spec" class="text-caption text-grey-7 ellipsis">{{
+                g.spec
+              }}</div>
+              <div class="goods-foot row items-center justify-between q-mt-xs">
+                <div class="goods-price-row row items-baseline q-gutter-sm">
+                  <div class="text-negative text-weight-bold"
+                    >¥{{ fmtPrice(g.price) }}</div
+                  >
                   <span class="text-caption text-grey-6">
-                    {{ g.stock === 0 ? '已售罄' : g.stock === -1 ? '' : `库存 ${g.stock}` }}
+                    {{
+                      g.stock === 0
+                        ? "已售罄"
+                        : g.stock === -1
+                          ? ""
+                          : `库存 ${g.stock}`
+                    }}
                   </span>
                 </div>
                 <!-- 加减按钮（大号）：数量即时算进购物车 -->
                 <div v-if="g.stock !== 0" class="qty-ctrl">
-                  <q-btn
-                    v-if="lineQty(g.id) > 0"
-                    round
-                    dense
-                    color="primary"
-                    class="sub-btn"
-                    aria-label="减少"
-                    @click="changeQty(g, -1)"
-                  >
-                    <q-icon name="remove" size="18px" />
-                  </q-btn>
-                  <q-input
-                    v-if="lineQty(g.id) > 0"
-                    :model-value="lineQty(g.id)"
-                    type="number"
-                    dense
-                    borderless
-                    class="qty-input"
-                    aria-label="修改数量"
-                    @change="onQtyInput(g, $event)"
-                  />
+                  <template v-if="lineQty(g.id) > 0">
+                    <q-btn
+                      round
+                      dense
+                      color="primary"
+                      class="sub-btn"
+                      aria-label="减少"
+                      @click="changeQty(g, -1)"
+                    >
+                      <q-icon name="remove" size="18px" />
+                    </q-btn>
+                    <q-input
+                      :model-value="lineQty(g.id)"
+                      type="number"
+                      dense
+                      borderless
+                      class="qty-input"
+                      aria-label="修改数量"
+                      @change="onQtyInput(g, $event)"
+                    />
+                  </template>
                   <q-btn
                     round
                     dense
@@ -148,7 +176,9 @@
               label="加载更多"
               @click="loadGoods(false)"
             />
-            <span v-else-if="!searchMode" class="text-caption text-grey-6">— 没有更多了 —</span>
+            <span v-else-if="!searchMode" class="text-caption text-grey-6"
+              >— 没有更多了 —</span
+            >
           </div>
         </template>
       </div>
@@ -163,7 +193,9 @@
         </div>
         <div class="col q-ml-sm">
           <div class="text-caption" style="line-height: 1">合计</div>
-          <div class="text-weight-bold" style="line-height: 1.2">¥{{ fmtPrice(cartTotal) }}</div>
+          <div class="text-weight-bold" style="line-height: 1.2"
+            >¥{{ fmtPrice(cartTotal) }}</div
+          >
         </div>
         <q-space />
         <q-icon name="chevron_right" size="22px" />
@@ -183,7 +215,14 @@ const pagePos = {
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch
+} from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { searchGoods } from "../../utils/search";
@@ -244,7 +283,9 @@ const allLoaded = ref(false);
 
 const searchMode = computed(() => (searchText.value ?? "").trim() !== "");
 const displayGoods = computed(() =>
-  searchMode.value ? searchGoods(allGoods.value, searchText.value ?? "") : goods.value
+  searchMode.value
+    ? searchGoods(allGoods.value, searchText.value ?? "")
+    : goods.value
 );
 
 // 全量上架商品只拉一次；搜索时自动切到「全部」分类，实现跨分类检索
@@ -256,14 +297,17 @@ async function loadAllGoods() {
     allGoods.value = Array.isArray(data.list) ? data.list : [];
     allLoaded.value = true;
   } catch (e) {
-    $q.notify({ message: `搜索数据加载失败：${describeError(e)}`, color: "negative" });
+    $q.notify({
+      message: `搜索数据加载失败：${describeError(e)}`,
+      color: "negative"
+    });
   } finally {
     searchLoading.value = false;
   }
 }
 
 // 输入关键词进入搜索态；清空后恢复当前分类的分页列表
-watch(searchText, async (v) => {
+watch(searchText, async v => {
   if ((v ?? "").trim()) {
     if (activeMenuId.value !== "0") {
       activeMenuId.value = "0";
@@ -550,6 +594,15 @@ onBeforeUnmount(() => {
   font-size: 14px;
 }
 
+/* 价格行 + 加减区：窄屏换行时加减区依然固定靠右 */
+.goods-foot {
+  row-gap: 6px;
+}
+
+.goods-price-row {
+  min-width: 0;
+}
+
 /* 吸顶顶部栏：模糊搜索 + AI 点单 */
 .goods-topbar {
   position: sticky;
@@ -579,7 +632,11 @@ onBeforeUnmount(() => {
 .qty-ctrl {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  /* 单独换行时也贴右侧，不与价格行错位 */
+  margin-left: auto;
+  flex: 0 0 auto;
 
   .add-btn {
     width: 36px;
