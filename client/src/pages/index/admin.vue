@@ -125,14 +125,14 @@
             <q-item
               v-for="(g, gIdx) in goodsList"
               :key="g.id"
-              class="menu-row"
+              class="menu-row goods-row"
               draggable="true"
               @dragstart="onGoodsDragStart(gIdx)"
               @dragover.prevent
               @drop="onGoodsDrop(gIdx)"
               @dragend="dragGoodsIdx = null"
             >
-              <q-item-section avatar>
+              <q-item-section avatar class="goods-photo">
                 <div class="goods-thumb">
                   <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
                   <q-icon
@@ -143,31 +143,34 @@
                   />
                 </div>
               </q-item-section>
-              <q-item-section>
-                <q-item-label class="text-weight-medium">{{
-                  g.name
-                }}</q-item-label>
-                <q-item-label caption>
-                  {{ menuName(g.menu_id) }}
-                  <span v-if="g.spec"> · {{ g.spec }}</span>
-                  <span v-if="g.alias"> · 别名：{{ g.alias }}</span>
-                  · 库存 {{ g.stock === -1 ? "不限" : g.stock }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side class="text-negative text-weight-bold">
-                ¥{{ (g.price / 100).toFixed(2) }}
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle
-                  :model-value="g.status === 1"
-                  :label="g.status === 1 ? '上架' : '下架'"
-                  dense
-                  color="positive"
-                  @update:model-value="(v: boolean) => toggleStatus(g, v)"
-                />
-              </q-item-section>
-              <q-item-section side>
-                <div class="row no-wrap">
+              <q-item-section class="goods-body">
+                <!-- 上：规格信息 -->
+                <div class="goods-spec">
+                  <div class="goods-head">
+                    <div class="goods-name text-weight-medium">{{
+                      g.name
+                    }}</div>
+                    <div class="goods-price text-negative text-weight-bold">
+                      ¥{{ (g.price / 100).toFixed(2) }}
+                    </div>
+                  </div>
+                  <div class="goods-meta text-caption text-grey-7">
+                    {{ menuName(g.menu_id) }}
+                    <span v-if="g.spec"> · {{ g.spec }}</span>
+                    <span v-if="g.alias"> · 别名：{{ g.alias }}</span>
+                    · 库存 {{ g.stock === -1 ? "不限" : g.stock }}
+                  </div>
+                </div>
+                <!-- 下：操作 -->
+                <div class="goods-actions">
+                  <q-toggle
+                    :model-value="g.status === 1"
+                    :label="g.status === 1 ? '上架' : '下架'"
+                    dense
+                    color="positive"
+                    @update:model-value="(v: boolean) => toggleStatus(g, v)"
+                  />
+                  <q-space />
                   <q-btn dense flat round icon="edit" @click="openGoods(g)" />
                   <q-btn
                     dense
@@ -2240,6 +2243,70 @@ onMounted(async () => {
   cursor: grab;
   &:active {
     cursor: grabbing;
+  }
+}
+
+/* 商品行：左图 + 右侧上下两段（上规格 / 下操作） */
+.goods-row {
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.goods-photo {
+  padding-top: 2px;
+}
+
+.goods-body {
+  min-width: 0;
+}
+
+.goods-spec,
+.goods-actions {
+  width: 100%;
+  min-width: 0;
+}
+
+.goods-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.goods-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goods-price {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.goods-meta {
+  margin-top: 2px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.goods-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+
+@media (max-width: 599px) {
+  .goods-thumb {
+    width: 34px;
+    height: 34px;
+  }
+
+  .goods-actions {
+    margin-top: 4px;
   }
 }
 </style>

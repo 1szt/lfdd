@@ -1,0 +1,52 @@
+# 前后端编排示例（镜像地址留空，由环境变量填入）
+#
+# 使用前：
+#   1. 准备镜像：docker load -i lfdd-server.tar / lfdd-web.tar
+#   2. 指定镜像地址，二选一：
+#      - 在当前目录建 .env 并写入：
+#          LFDD_SERVER_IMAGE=lfdd-server:latest
+#          LFDD_WEB_IMAGE=lfdd-web:latest
+#      - 或部署时导出同名环境变量
+#   3. docker compose up -d
+#
+# 注意：前端后端地址是构建期写进产物的（构建参数 API_BASE），
+#       web 镜像构建时若留空，则前端按同源请求 /api，需要在 nginx 里反代到 server（见 client/nginx.conf）。
+name: lfdd
+
+services:
+  server:
+    image: ${LFDD_SERVER_IMAGE:?请设置 LFDD_SERVER_IMAGE（server 镜像地址）}
+    container_name: lfdd-server
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Shanghai
+      LFDD_PORT: "9081"
+      # 容器内不启用 HTTPS：TLS 交给外层反向代理，避免自签证书告警
+      LFDD_SERVER_HTTPS: "false"
+      # 分域部署（web 与 server 不同域名）时按实际来源收敛，同域反代可保持 *
+      LFDD_CORS_ORIGINS: "*"
+      # 使用外部数据库时取消注释并填写（sqlite 则保持默认即可）
+      # LFDD_DB_TYPE: pgsql
+      # LFDD_DB_HOST: db
+      # LFDD_DB_PORT: "5432"
+      # LFDD_DB_NAME: lfdd
+      # LFDD_DB_USER: lfdd
+      # LFDD_DB_PASSWORD: change-me
+    volumes:
+      # 配置、SQLite、日志、上传都在这里，务必持久化
+      - lfdd-data:/app/data
+    ports:
+      # 仅调试时暴露；仅通过 web 反代访问时可删掉
+      - "9081:9081"
+
+  web:
+    image: ${LFDD_WEB_IMAGE:?请设置 LFDD_WEB_IMAGE（web 镜像地址）}
+    container_name: lfdd-web
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8080:80"
+
+volumes:
+  lfdd-data:
