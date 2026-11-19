@@ -14,7 +14,7 @@
          不写死后端域名，避免构建时环境变量缺失导致 CSP 把接口全部拦掉。 -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; connect-src 'self' https: http:<% if (ctx.dev) { %> ws://localhost:*<% } %>"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; connect-src 'self' https: http:<% if (ctx.dev) { %> ws: wss:<% } %>"
     />
 
     <link
