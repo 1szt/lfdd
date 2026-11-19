@@ -1007,37 +1007,50 @@
               dense
               hint="-1 = 不限库存，0 = 售罄"
             />
-            <!-- 图片：选择文件即上传（哈希命名），image 字段只存哈希 -->
+            <!-- 媒体：选择文件即上传（哈希命名），可多选图片/视频；第一张图片作首页展示 -->
             <q-file
-              v-model="goodsImageFile"
+              v-model="goodsMediaFiles"
               outlined
               dense
-              label="上传图片（可空，jpg/png/gif/webp，≤5MB）"
-              accept="image/*"
+              multiple
+              label="上传图片/视频（可多选，≤5MB 图片 / ≤50MB 视频）"
+              accept="image/*,video/*"
               :loading="imgUploading"
-              @update:model-value="uploadGoodsImage"
+              @update:model-value="uploadGoodsMedia"
             >
               <template #prepend>
                 <q-icon name="upload" />
               </template>
             </q-file>
-            <div v-if="goodsForm.image" class="row items-center q-gutter-sm">
-              <img
-                :src="imgSrc(goodsForm.image)"
-                class="goods-thumb"
-                style="width: 48px; height: 48px"
-                alt=""
-              />
-              <span class="text-caption text-grey-6">预览</span>
-              <q-btn
-                flat
-                dense
-                size="sm"
-                color="negative"
-                icon="close"
-                label="移除"
-                @click="goodsForm.image = ''"
-              />
+            <div v-if="goodsForm.media.length" class="media-grid">
+              <div
+                v-for="(m, i) in goodsForm.media"
+                :key="m.hash"
+                class="media-item"
+              >
+                <img v-if="m.type === 'image'" :src="imgSrc(m.hash)" alt="" />
+                <video
+                  v-else
+                  :src="imgSrc(m.hash)"
+                  muted
+                  playsinline
+                  preload="metadata"
+                />
+                <q-btn
+                  round
+                  dense
+                  size="xs"
+                  color="negative"
+                  icon="close"
+                  class="media-remove"
+                  @click="goodsForm.media.splice(i, 1)"
+                />
+                <div
+                  v-if="m.type === 'image' && m.hash === firstMediaImage()"
+                  class="media-tag"
+                  >首页</div
+                >
+              </div>
             </div>
             <q-toggle
               v-model="goodsForm.statusOn"
@@ -1143,8 +1156,14 @@ interface AdminGoods {
   spec: string;
   stock: number;
   image: string;
+  media?: GoodsMedia[]; // 图片/视频列表
   sort: number;
   status: number;
+}
+
+interface GoodsMedia {
+  hash: string;
+  type: "image" | "video";
 }
 
 // ================= 通用 =================
@@ -1346,13 +1365,13 @@ const goodsForm = reactive({
   costYuan: "0",
   spec: "",
   stock: "-1",
-  image: "",
+  media: [] as GoodsMedia[],
   statusOn: true,
   sort: 0
 });
 
-// 图片上传：选择文件即传给后端（内容哈希命名），成功后把返回哈希填进 goodsForm.image
-const goodsImageFile = ref<File | null>(null);
+// 媒体上传：选择文件即传给后端（内容哈希命名），成功后追加到 goodsForm.media
+const goodsMediaFiles = ref<File[] | null>(null);
 const imgUploading = ref(false);
 
 // image 字段只存哈希，展示时拼成 /api/upload/{hash}（兼容旧数据里的完整 URL/路径）
@@ -1363,33 +1382,47 @@ function imgSrc(v: string): string {
   return apiPath(`/api/upload/${v}`);
 }
 
-async function uploadGoodsImage(f: unknown) {
-  if (!f) return;
+// 第一张图片哈希：首页展示用
+function firstMediaImage(): string {
+  return goodsForm.media.find(m => m.type === "image")?.hash ?? "";
+}
+
+// 批量上传：逐张/逐段传到后端，按返回哈希追加进媒体列表
+async function uploadGoodsMedia(files: unknown) {
+  const targets = (Array.isArray(files) ? files : files ? [files] : []).filter(
+    (f): f is File => f instanceof File
+  );
+  if (targets.length === 0) return;
   imgUploading.value = true;
   try {
-    const fd = new FormData();
-    fd.append("file", f as File);
-    const res = await fetch("/api/goods/upload", {
-      method: "POST",
-      ...(token.value
-        ? { headers: { Authorization: `Bearer ${token.value}` } }
-        : {}),
-      body: fd
-    });
-    if (res.status === 401) {
-      token.value = "";
-      localStorage.removeItem(TOKEN_KEY);
-      markLoggedOut();
-      throw new Error("登录已过期，请重新登录");
+    for (const f of targets) {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/goods/upload", {
+        method: "POST",
+        ...(token.value
+          ? { headers: { Authorization: `Bearer ${token.value}` } }
+          : {}),
+        body: fd
+      });
+      if (res.status === 401) {
+        token.value = "";
+        localStorage.removeItem(TOKEN_KEY);
+        markLoggedOut();
+        throw new Error("登录已过期，请重新登录");
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || `上传失败（${res.status}）`);
+      goodsForm.media.push({
+        hash: data.hash,
+        type: f.type.startsWith("video/") ? "video" : "image"
+      });
     }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `上传失败（${res.status}）`);
-    goodsForm.image = data.hash;
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
   } finally {
     imgUploading.value = false;
-    goodsImageFile.value = null; // 清掉以便再次选同一文件也能触发
+    goodsMediaFiles.value = null; // 清掉以便再次选同一文件也能触发
   }
 }
 
@@ -1461,7 +1494,12 @@ function openGoods(g?: AdminGoods) {
     goodsForm.costYuan = ((g.cost ?? 0) / 100).toFixed(2);
     goodsForm.spec = g.spec;
     goodsForm.stock = String(g.stock);
-    goodsForm.image = g.image;
+    goodsForm.media =
+      g.media && g.media.length
+        ? g.media.map(m => ({ ...m }))
+        : g.image
+          ? [{ hash: g.image, type: "image" }]
+          : [];
     goodsForm.statusOn = g.status === 1;
     goodsForm.sort = g.sort;
   } else {
@@ -1474,11 +1512,11 @@ function openGoods(g?: AdminGoods) {
     goodsForm.costYuan = "0";
     goodsForm.spec = "";
     goodsForm.stock = "-1";
-    goodsForm.image = "";
+    goodsForm.media = [];
     goodsForm.statusOn = true;
     goodsForm.sort = 0;
   }
-  goodsImageFile.value = null;
+  goodsMediaFiles.value = null;
   goodsDlg.value = true;
 }
 
@@ -1519,7 +1557,8 @@ async function saveGoods() {
       cost,
       spec: goodsForm.spec.trim(),
       stock,
-      image: goodsForm.image.trim(),
+      media: goodsForm.media.map(m => ({ ...m })),
+      image: firstMediaImage(),
       status: goodsForm.statusOn ? 1 : 0,
       sort: goodsForm.sort
     };
@@ -2256,6 +2295,48 @@ onMounted(async () => {
 .scan-list {
   max-height: calc(100vh - 320px);
   overflow-y: auto;
+}
+
+/* 商品媒体：多图/视频缩略图网格 */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.media-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+
+  img,
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.media-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+}
+
+.media-tag {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
 }
 
 .menu-row {

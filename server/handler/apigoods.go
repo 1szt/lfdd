@@ -169,14 +169,14 @@ func (h *ApiGoodsHandler) Sort(c *gin.Context) {
 	})
 }
 
-// Upload 商品图片上传（multipart 字段名 file，≤5MB，jpg/png/gif/webp）
-// 文件按内容 SHA-256 哈希命名存储（无后缀、同图去重），返回 {"hash":"{sha256}"}
-// 数据库 goods.image 只存哈希，图片访问走 GET /api/upload/{hash}（类型按内容嗅探）
+// Upload 商品媒体上传（multipart 字段名 file；图片 ≤5MB jpg/png/gif/webp，视频 ≤50MB mp4/mov/webm）
+// 文件按内容 SHA-256 哈希命名存储（无后缀、同内容去重），返回 {"hash":"{sha256}"}
+// 数据库 goods.media 只存哈希，访问走 GET /api/upload/{hash}（类型按内容嗅探）
 func (h *ApiGoodsHandler) Upload(c *gin.Context) {
 	fh, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(400, gin.H{
-			"message": "请选择图片文件（multipart 字段名 file）",
+			"message": "请选择图片或视频文件（multipart 字段名 file）",
 		})
 		return
 	}

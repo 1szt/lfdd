@@ -104,7 +104,13 @@
         <template v-else>
           <div v-for="(g, idx) in displayGoods" :key="g.id" class="goods-card">
             <div class="goods-img">
-              <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
+              <img
+                v-if="g.image"
+                :src="imgSrc(g.image)"
+                :alt="g.name"
+                class="goods-img-clickable"
+                @click="openViewer(g)"
+              />
               <q-icon v-else name="shopping_bag" size="32px" color="grey-5" />
               <div v-if="g.stock === 0" class="sold-out">售罄</div>
             </div>
@@ -225,6 +231,52 @@
         <q-icon name="chevron_right" size="22px" />
       </div>
     </div>
+    <!-- 商品图片/视频查看：点击图片放大，可左右滑动切换 -->
+    <q-dialog v-model="viewerOpen" maximized>
+      <div class="viewer-wrap">
+        <q-btn
+          round
+          dense
+          flat
+          icon="close"
+          color="white"
+          class="viewer-close"
+          aria-label="关闭"
+          v-close-popup
+        />
+        <q-carousel
+          v-model="viewerIndex"
+          swipeable
+          animated
+          arrows
+          navigation
+          infinite
+          dark
+          class="viewer-carousel"
+        >
+          <q-carousel-slide
+            v-for="(m, i) in viewerMedia"
+            :key="m.hash"
+            :name="i"
+            class="viewer-slide"
+          >
+            <img
+              v-if="m.type === 'image'"
+              :src="imgSrc(m.hash)"
+              alt=""
+              class="viewer-media"
+            />
+            <video
+              v-else
+              :src="imgSrc(m.hash)"
+              controls
+              playsinline
+              class="viewer-media"
+            />
+          </q-carousel-slide>
+        </q-carousel>
+      </div>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -269,6 +321,11 @@ interface SidebarMenu {
   name: string;
 }
 
+interface GoodsMedia {
+  hash: string;
+  type: "image" | "video";
+}
+
 interface GoodsItem {
   id: string;
   menu_id: string;
@@ -278,7 +335,8 @@ interface GoodsItem {
   cost?: number; // 进价，单位：分（仅管理员接口返回）
   spec: string;
   stock: number; // -1 = 不限库存，0 = 售罄
-  image: string;
+  image: string; // 第一张图片哈希（首页展示）
+  media?: GoodsMedia[]; // 图片/视频列表
   status: number;
 }
 
@@ -373,6 +431,26 @@ async function loadMe() {
   } catch {
     isAdmin.value = false;
   }
+}
+
+// ================= 图片/视频查看器（点击放大，左右滑动切换） =================
+const viewerOpen = ref(false);
+const viewerIndex = ref(0);
+const viewerMedia = ref<GoodsMedia[]>([]);
+
+function goodsMediaOf(g: GoodsItem): GoodsMedia[] {
+  if (g.media && g.media.length) return g.media;
+  return g.image ? [{ hash: g.image, type: "image" }] : [];
+}
+
+function openViewer(g: GoodsItem) {
+  const list = goodsMediaOf(g);
+  if (list.length === 0) return;
+  viewerMedia.value = list;
+  // 首页展示第一张图片，打开时定位到它（无图片则从第一项开始）
+  const firstImageIdx = list.findIndex(m => m.type === "image");
+  viewerIndex.value = firstImageIdx >= 0 ? firstImageIdx : 0;
+  viewerOpen.value = true;
 }
 
 function goCart() {
@@ -617,6 +695,41 @@ onBeforeUnmount(() => {
     height: 100%;
     object-fit: cover;
   }
+}
+
+/* 点击商品图放大查看 */
+.goods-img-clickable {
+  cursor: zoom-in;
+}
+
+/* 全屏图片/视频查看器 */
+.viewer-wrap {
+  position: fixed;
+  inset: 0;
+  background: #000;
+}
+
+.viewer-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+
+.viewer-carousel {
+  height: 100%;
+}
+
+.viewer-slide {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.viewer-media {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
 }
 
 .sold-out {
