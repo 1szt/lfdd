@@ -111,7 +111,14 @@
                 class="goods-img-clickable"
                 @click="openViewer(g)"
               />
-              <q-icon v-else name="shopping_bag" size="32px" color="grey-5" />
+              <q-icon
+                v-else
+                :name="hasMedia(g) ? 'language' : 'shopping_bag'"
+                size="32px"
+                color="grey-5"
+                :class="{ 'goods-img-clickable': hasMedia(g) }"
+                @click="hasMedia(g) && openViewer(g)"
+              />
               <div v-if="g.stock === 0" class="sold-out">售罄</div>
             </div>
             <div class="col">
@@ -263,12 +270,18 @@
             draggable="false"
           />
           <video
-            v-else
+            v-else-if="m.type === 'video'"
             :src="mediaSrc(m)"
             controls
             playsinline
             preload="metadata"
             class="viewer-media"
+          />
+          <iframe
+            v-else
+            :src="mediaSrc(m)"
+            class="viewer-web"
+            allowfullscreen
           />
         </div>
       </div>
@@ -353,8 +366,8 @@ interface SidebarMenu {
 
 interface GoodsMedia {
   hash?: string; // 本站上传：内容哈希
-  url?: string; // 第三方：图片/视频直链
-  type: "image" | "video";
+  url?: string; // 第三方：图片/视频直链或网页地址
+  type: "image" | "video" | "web";
 }
 
 // 媒体标识：本站哈希或第三方直链
@@ -483,6 +496,11 @@ const viewerScroller = ref<HTMLElement | null>(null);
 function goodsMediaOf(g: GoodsItem): GoodsMedia[] {
   if (g.media && g.media.length) return g.media;
   return g.image ? [{ hash: g.image, type: "image" }] : [];
+}
+
+// 有媒体（含仅网页嵌套）才允许点开预览
+function hasMedia(g: GoodsItem): boolean {
+  return goodsMediaOf(g).length > 0;
 }
 
 // 原生 App 内的返回键由 Quasar 统一拦截（q-dialog 会注册历史记录），
@@ -866,6 +884,14 @@ onBeforeUnmount(() => {
   object-fit: contain;
   user-select: none;
   -webkit-user-drag: none;
+}
+
+/* 网页嵌套：铺满整个预览区域 */
+.viewer-web {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
 }
 
 .viewer-arrow {

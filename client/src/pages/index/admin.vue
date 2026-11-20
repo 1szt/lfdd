@@ -1043,12 +1043,15 @@
               >
                 <img v-if="m.type === 'image'" :src="mediaSrc(m)" alt="" />
                 <video
-                  v-else
+                  v-else-if="m.type === 'video'"
                   :src="mediaSrc(m)"
                   muted
                   playsinline
                   preload="metadata"
                 />
+                <div v-else class="media-web">
+                  <q-icon name="language" size="26px" />
+                </div>
                 <q-btn
                   round
                   dense
@@ -1176,8 +1179,8 @@ interface AdminGoods {
 
 interface GoodsMedia {
   hash?: string; // 本站上传：内容哈希
-  url?: string; // 第三方：图片/视频直链
-  type: "image" | "video";
+  url?: string; // 第三方：图片/视频直链或网页地址
+  type: "image" | "video" | "web";
 }
 
 // ================= 通用 =================
@@ -1416,22 +1419,27 @@ function firstMediaImage(): string {
 // 弹窗输入链接：避免在商品弹窗里再加一个输入框
 function promptMediaUrl() {
   $q.dialog({
-    title: "添加第三方图片/视频",
-    message: "粘贴 http/https 直链，不下载文件，前端直接用该地址加载",
+    title: "添加第三方链接",
+    message:
+      "粘贴 http/https 链接：图片/视频按扩展名识别，其它链接按网页嵌套显示（对方站点禁止嵌套时会打不开）",
     prompt: { model: "", type: "text" },
     cancel: true,
     persistent: true
   }).onOk((val: unknown) => addMediaUrl(String(val ?? "").trim()));
 }
 
-// 第三方直链：只存链接，不下载；按扩展名判断图片/视频
+// 第三方链接：只存链接，不下载；按扩展名判断图片/视频，其余按网页嵌入
 function addMediaUrl(u: string) {
   if (!/^https?:\/\//i.test(u)) {
     $q.notify({ message: "请输入 http/https 开头的完整链接", color: "negative" });
     return;
   }
   const path = u.split(/[?#]/)[0]!.toLowerCase();
-  const type = /\.(mp4|m4v|mov|webm)$/.test(path) ? "video" : "image";
+  const type: GoodsMedia["type"] = /\.(mp4|m4v|mov|webm)$/.test(path)
+    ? "video"
+    : /\.(jpe?g|png|gif|webp|avif|bmp)$/.test(path)
+      ? "image"
+      : "web";
   goodsForm.media.push({ url: u, type });
 }
 
@@ -2350,6 +2358,17 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 8px;
+}
+
+/* 网页嵌套项：缩略图占位 */
+.media-web {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef1f5;
+  color: #5f6b7a;
 }
 
 /* 添加第三方链接按钮：与左侧 dense 上传框同高（40px）、同圆角 */

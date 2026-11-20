@@ -153,9 +153,10 @@ func GetGoodsAll(i GetGoodsAllInput) (o GetGoodsAllOutput, err error) {
 // toGoodsView 模型转视图，集中一处避免各接口字段遗漏；withCost=false 时不返回进价
 func toGoodsView(g model.Goods, withCost bool) GoodsView {
 	media := mediaOf(g)
-	image := g.Image
-	if image == "" {
-		image = firstImage(media)
+	// 有媒体列表时以列表为准（避免旧 image 字段残留网页链接被当图片加载）
+	image := firstImage(media)
+	if image == "" && len(media) == 0 {
+		image = g.Image
 	}
 	v := GoodsView{
 		ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
@@ -167,7 +168,8 @@ func toGoodsView(g model.Goods, withCost bool) GoodsView {
 	return v
 }
 
-// normalizeMedia 归一化媒体列表：哈希与第三方直链二选一，类型只认 image/video（其余按图片处理）
+// normalizeMedia 归一化媒体列表：哈希与第三方直链二选一；
+// 类型支持 image/video/web（网页嵌套只允许第三方直链），其余按图片处理
 func normalizeMedia(list []GoodsMedia) []GoodsMedia {
 	out := make([]GoodsMedia, 0, len(list))
 	for _, m := range list {
@@ -182,12 +184,34 @@ func normalizeMedia(list []GoodsMedia) []GoodsMedia {
 		} else if m.Hash == "" {
 			continue
 		}
-		if m.Type != "video" {
-			m.Type = "image"
+		switch m.Type {
+		case "video":
+		case "web":
+			// 网页嵌套必须是直链，用哈希的降级为图片
+			if m.URL == "" {
+				m.Type = "image"
+			}
+		default:
+			// 旧数据把网页链接存成了图片：按 .html 后缀自动修正为网页嵌套
+			if m.URL != "" && isHTMLLink(m.URL) {
+				m.Type = "web"
+			} else {
+				m.Type = "image"
+			}
 		}
 		out = append(out, m)
 	}
 	return out
+}
+
+// isHTMLLink 判断第三方链接是否网页页面（.html/.htm/.shtml）
+func isHTMLLink(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	p := strings.ToLower(u.Path)
+	return strings.HasSuffix(p, ".html") || strings.HasSuffix(p, ".htm") || strings.HasSuffix(p, ".shtml")
 }
 
 // isHTTPURL 校验第三方媒体直链（仅允许 http/https）
