@@ -231,8 +231,10 @@
         <q-icon name="chevron_right" size="22px" />
       </div>
     </div>
-    <!-- 商品图片/视频查看：自制全屏预览，支持左右滑动切换 -->
-    <div v-if="viewerOpen" class="viewer-wrap">
+    <!-- 商品图片/视频查看：自制全屏预览，支持左右滑动切换。
+         用 q-dialog 承载：App 内返回键由 Quasar 统一拦截关闭预览，不会直接退出 App -->
+    <q-dialog v-model="viewerOpen" maximized>
+      <div class="viewer-wrap">
       <q-btn
         round
         dense
@@ -301,7 +303,8 @@
           />
         </div>
       </template>
-    </div>
+      </div>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -328,6 +331,7 @@ import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { searchGoods } from "../../utils/search";
 import { hasToken } from "../../utils/guest";
+import { isNative } from "../../utils/printer";
 import {
   cartCount,
   cartTotal,
@@ -470,6 +474,10 @@ function goodsMediaOf(g: GoodsItem): GoodsMedia[] {
   return g.image ? [{ hash: g.image, type: "image" }] : [];
 }
 
+// 原生 App 内的返回键由 Quasar 统一拦截（q-dialog 会注册历史记录），
+// 浏览器/网页版没有该拦截，用 history 状态实现同样的「返回先关预览」
+const nativeApp = isNative();
+
 function openViewer(g: GoodsItem) {
   const list = goodsMediaOf(g);
   if (list.length === 0) return;
@@ -478,8 +486,7 @@ function openViewer(g: GoodsItem) {
   const firstImageIdx = list.findIndex(m => m.type === "image");
   viewerIndex.value = firstImageIdx >= 0 ? firstImageIdx : 0;
   viewerOpen.value = true;
-  // 压入一条历史记录：手机返回键/侧滑返回先关预览，而不是退出页面或 App
-  history.pushState({ lfddViewer: true }, "");
+  if (!nativeApp) history.pushState({ lfddViewer: true }, "");
   // 打开后立即滚到目标项（等 DOM 渲染完）
   nextTick(() => {
     const el = viewerScroller.value;
@@ -492,9 +499,14 @@ function closeViewer() {
   pauseViewerVideos();
 }
 
-// 关闭按钮 / Esc：有自身历史记录时先回退，由 popstate 统一关闭
+// 弹窗被关闭（含 App 返回键、Esc）时暂停视频，避免后台继续出声
+watch(viewerOpen, v => {
+  if (!v) pauseViewerVideos();
+});
+
+// 关闭按钮 / Esc：网页版有自身历史记录时先回退，由 popstate 统一关闭
 function requestCloseViewer() {
-  if (history.state?.lfddViewer) history.back();
+  if (!nativeApp && history.state?.lfddViewer) history.back();
   else closeViewer();
 }
 
