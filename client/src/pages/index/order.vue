@@ -334,7 +334,21 @@
       <q-card class="print-card price-card">
         <q-card-section class="row items-center justify-between">
           <span class="text-body2 text-weight-medium">批量改价</span>
-          <q-icon name="price_change" color="primary" />
+          <div class="row items-center">
+            <!-- 管理员：小眼睛开关进价显示 -->
+            <q-btn
+              v-if="isAdmin"
+              flat
+              dense
+              round
+              size="sm"
+              :icon="showCost ? 'visibility_off' : 'visibility'"
+              color="grey-7"
+              aria-label="显示进价"
+              @click="toggleCost"
+            />
+            <q-icon name="price_change" color="primary" />
+          </div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
@@ -358,6 +372,10 @@
                   >
                     现改价 ¥{{ fmtPrice(r.initial) }}
                   </span>
+                </div>
+                <!-- 管理员：开启小眼睛后显示进价 -->
+                <div v-if="isAdmin && showCost" class="text-caption text-grey-6">
+                  进 ¥{{ fmtPrice(goodsCost[r.goods_id] ?? 0) }}
                 </div>
               </div>
               <q-input
@@ -456,9 +474,38 @@ async function loadMe() {
     if (!res.ok) return;
     const data = await res.json().catch(() => ({}));
     isAdmin.value = Number(data?.role) === 2;
+    if (isAdmin.value) void loadGoodsCost();
   } catch {
     isAdmin.value = false;
   }
+}
+
+// ================= 进价展示（仅管理员） =================
+const showCost = ref(false);
+const goodsCost = ref<Record<string, number>>({});
+let costLoaded = false;
+
+// 拉一次全部商品，取 goods_id → 进价（分）；接口只对管理员返回 cost
+async function loadGoodsCost() {
+  if (costLoaded || !isAdmin.value) return;
+  try {
+    const res = await fetch("/api/goods/all");
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const map: Record<string, number> = {};
+    for (const g of Array.isArray(data.list) ? data.list : []) {
+      map[String(g.id)] = Number(g.cost) || 0;
+    }
+    goodsCost.value = map;
+    costLoaded = true;
+  } catch {
+    // 静默失败：取不到就不显示进价
+  }
+}
+
+function toggleCost() {
+  showCost.value = !showCost.value;
+  if (showCost.value) void loadGoodsCost();
 }
 
 interface OrderItem {
