@@ -1007,8 +1007,8 @@
               dense
               hint="-1 = 不限库存，0 = 售罄"
             />
-            <!-- 媒体：上传（哈希存储）与第三方直链（只存链接）并排 -->
-            <div class="row items-center q-gutter-sm">
+            <!-- 媒体：上传（哈希存储）与第三方直链（只存链接）并排，左右与上方字段对齐 -->
+            <div class="row items-center">
               <q-file
                 v-model="goodsMediaFiles"
                 outlined
@@ -1031,7 +1031,7 @@
                 icon="link"
                 label="添加第三方链接"
                 no-caps
-                class="media-link-btn"
+                class="media-link-btn q-ml-sm"
                 @click="promptMediaUrl"
               />
             </div>
