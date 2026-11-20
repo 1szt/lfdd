@@ -241,7 +241,7 @@
         color="white"
         class="viewer-close"
         aria-label="关闭"
-        @click="closeViewer"
+        @click="requestCloseViewer"
       />
       <div
         ref="viewerScroller"
@@ -478,6 +478,8 @@ function openViewer(g: GoodsItem) {
   const firstImageIdx = list.findIndex(m => m.type === "image");
   viewerIndex.value = firstImageIdx >= 0 ? firstImageIdx : 0;
   viewerOpen.value = true;
+  // 压入一条历史记录：手机返回键/侧滑返回先关预览，而不是退出页面或 App
+  history.pushState({ lfddViewer: true }, "");
   // 打开后立即滚到目标项（等 DOM 渲染完）
   nextTick(() => {
     const el = viewerScroller.value;
@@ -488,6 +490,18 @@ function openViewer(g: GoodsItem) {
 function closeViewer() {
   viewerOpen.value = false;
   pauseViewerVideos();
+}
+
+// 关闭按钮 / Esc：有自身历史记录时先回退，由 popstate 统一关闭
+function requestCloseViewer() {
+  if (history.state?.lfddViewer) history.back();
+  else closeViewer();
+}
+
+// 返回键/侧滑返回：只关闭预览，不发其他导航
+function onViewerPopState() {
+  if (!viewerOpen.value) return;
+  closeViewer();
 }
 
 // 离开当前项时暂停视频，避免后台继续出声
@@ -552,7 +566,7 @@ function onViewerPointerUp() {
 function onViewerKey(e: KeyboardEvent) {
   if (!viewerOpen.value) return;
   if (e.key === "Escape") {
-    closeViewer();
+    requestCloseViewer();
   } else if (e.key === "ArrowLeft") {
     goToMedia(viewerIndex.value - 1);
   } else if (e.key === "ArrowRight") {
@@ -660,6 +674,7 @@ function selectMenu(id: string) {
 
 onMounted(async () => {
   window.addEventListener("keydown", onViewerKey);
+  window.addEventListener("popstate", onViewerPopState);
   await Promise.all([loadMenus(), loadGoods(true), loadMe()]);
   // 数据渲染后恢复上次的滚动位置
   await nextTick();
@@ -669,6 +684,7 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   window.removeEventListener("keydown", onViewerKey);
+  window.removeEventListener("popstate", onViewerPopState);
   pagePos.activeMenuId = activeMenuId.value;
   pagePos.side = sideRef.value?.scrollTop ?? 0;
   pagePos.main = mainRef.value?.scrollTop ?? 0;
