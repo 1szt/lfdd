@@ -1007,31 +1007,44 @@
               dense
               hint="-1 = 不限库存，0 = 售罄"
             />
-            <!-- 媒体：选择文件即上传（哈希命名），可多选图片/视频；第一张图片作首页展示 -->
-            <q-file
-              v-model="goodsMediaFiles"
-              outlined
-              dense
-              multiple
-              label="上传图片/视频（图片自动压缩为 WebP ≤1MB，视频原样保存）"
-              accept="image/*,video/*"
-              :loading="imgUploading"
-              @update:model-value="uploadGoodsMedia"
-            >
-              <template #prepend>
-                <q-icon name="upload" />
-              </template>
-            </q-file>
+            <!-- 媒体：上传（哈希存储）与第三方直链（只存链接）并排 -->
+            <div class="row items-center q-gutter-sm">
+              <q-file
+                v-model="goodsMediaFiles"
+                outlined
+                dense
+                multiple
+                class="col"
+                label="上传图片/视频（压缩为 WebP ≤1MB，视频原样保存）"
+                accept="image/*,video/*"
+                :loading="imgUploading"
+                @update:model-value="uploadGoodsMedia"
+              >
+                <template #prepend>
+                  <q-icon name="upload" />
+                </template>
+              </q-file>
+              <q-btn
+                dense
+                outline
+                color="primary"
+                icon="link"
+                label="添加第三方链接"
+                no-caps
+                class="media-link-btn"
+                @click="promptMediaUrl"
+              />
+            </div>
             <div v-if="goodsForm.media.length" class="media-grid">
               <div
                 v-for="(m, i) in goodsForm.media"
-                :key="m.hash"
+                :key="mediaKey(m)"
                 class="media-item"
               >
-                <img v-if="m.type === 'image'" :src="imgSrc(m.hash)" alt="" />
+                <img v-if="m.type === 'image'" :src="mediaSrc(m)" alt="" />
                 <video
                   v-else
-                  :src="imgSrc(m.hash)"
+                  :src="mediaSrc(m)"
                   muted
                   playsinline
                   preload="metadata"
@@ -1046,7 +1059,7 @@
                   @click="goodsForm.media.splice(i, 1)"
                 />
                 <div
-                  v-if="m.type === 'image' && m.hash === firstMediaImage()"
+                  v-if="m.type === 'image' && mediaKey(m) === firstMediaImage()"
                   class="media-tag"
                   >首页</div
                 >
@@ -1162,7 +1175,8 @@ interface AdminGoods {
 }
 
 interface GoodsMedia {
-  hash: string;
+  hash?: string; // 本站上传：内容哈希
+  url?: string; // 第三方：图片/视频直链
   type: "image" | "video";
 }
 
@@ -1382,9 +1396,43 @@ function imgSrc(v: string): string {
   return apiPath(`/api/upload/${v}`);
 }
 
-// 第一张图片哈希：首页展示用
+// 媒体标识：本站哈希或第三方直链
+function mediaKey(m: GoodsMedia): string {
+  return m.hash || m.url || "";
+}
+
+// 媒体地址：本站哈希拼成 /api/upload/{hash}，第三方直链原样使用
+function mediaSrc(m: GoodsMedia): string {
+  return imgSrc(mediaKey(m));
+}
+
+// 第一张图片：首页展示用（哈希或直链）
 function firstMediaImage(): string {
-  return goodsForm.media.find(m => m.type === "image")?.hash ?? "";
+  const m = goodsForm.media.find(x => x.type === "image");
+  return m ? mediaKey(m) : "";
+}
+
+// ================= 第三方媒体链接 =================
+// 弹窗输入链接：避免在商品弹窗里再加一个输入框
+function promptMediaUrl() {
+  $q.dialog({
+    title: "添加第三方图片/视频",
+    message: "粘贴 http/https 直链，不下载文件，前端直接用该地址加载",
+    prompt: { model: "", type: "text" },
+    cancel: true,
+    persistent: true
+  }).onOk((val: unknown) => addMediaUrl(String(val ?? "").trim()));
+}
+
+// 第三方直链：只存链接，不下载；按扩展名判断图片/视频
+function addMediaUrl(u: string) {
+  if (!/^https?:\/\//i.test(u)) {
+    $q.notify({ message: "请输入 http/https 开头的完整链接", color: "negative" });
+    return;
+  }
+  const path = u.split(/[?#]/)[0]!.toLowerCase();
+  const type = /\.(mp4|m4v|mov|webm)$/.test(path) ? "video" : "image";
+  goodsForm.media.push({ url: u, type });
 }
 
 // 批量上传：逐张/逐段传到后端，按返回哈希追加进媒体列表
@@ -2302,6 +2350,12 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: 8px;
+}
+
+/* 添加第三方链接按钮：与左侧 dense 上传框同高（40px）、同圆角 */
+.media-link-btn {
+  height: 40px;
+  border-radius: 4px;
 }
 
 .media-item {

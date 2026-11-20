@@ -254,17 +254,17 @@
         @pointerup="onViewerPointerUp"
         @pointerleave="onViewerPointerUp"
       >
-        <div v-for="m in viewerMedia" :key="m.hash" class="viewer-slide">
+        <div v-for="m in viewerMedia" :key="mediaKey(m)" class="viewer-slide">
           <img
             v-if="m.type === 'image'"
-            :src="imgSrc(m.hash)"
+            :src="mediaSrc(m)"
             alt=""
             class="viewer-media"
             draggable="false"
           />
           <video
             v-else
-            :src="imgSrc(m.hash)"
+            :src="mediaSrc(m)"
             controls
             playsinline
             preload="metadata"
@@ -296,7 +296,7 @@
         <div class="viewer-dots">
           <span
             v-for="(m, i) in viewerMedia"
-            :key="m.hash"
+            :key="mediaKey(m)"
             class="viewer-dot"
             :class="{ active: i === viewerIndex }"
             @click="goToMedia(i)"
@@ -352,8 +352,19 @@ interface SidebarMenu {
 }
 
 interface GoodsMedia {
-  hash: string;
+  hash?: string; // 本站上传：内容哈希
+  url?: string; // 第三方：图片/视频直链
   type: "image" | "video";
+}
+
+// 媒体标识：本站哈希或第三方直链
+function mediaKey(m: GoodsMedia): string {
+  return m.hash || m.url || "";
+}
+
+// 媒体地址：哈希拼成本站接口，第三方直链原样使用
+function mediaSrc(m: GoodsMedia): string {
+  return imgSrc(mediaKey(m));
 }
 
 interface GoodsItem {

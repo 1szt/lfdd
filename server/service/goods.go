@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"server/core/db"
 	"server/model"
 	"strconv"
@@ -58,10 +59,11 @@ type GoodsView struct {
 	Status int8         `json:"status"`
 }
 
-// GoodsMedia 商品媒体：图片或视频（hash 为上传内容哈希）
+// GoodsMedia 商品媒体：本站上传存内容哈希，第三方资源只存直链（不下载）
 type GoodsMedia struct {
-	Hash string `json:"hash"`
-	Type string `json:"type"` // image / video
+	Hash string `json:"hash,omitempty"` // 上传文件的内容哈希，访问路径 /api/upload/{hash}
+	URL  string `json:"url,omitempty"`  // 第三方图片/视频直链，前端直接用该地址
+	Type string `json:"type"`           // image / video
 }
 
 type GetGoodsPageInput struct {
@@ -165,19 +167,39 @@ func toGoodsView(g model.Goods, withCost bool) GoodsView {
 	return v
 }
 
-// normalizeMedia 归一化媒体列表：丢弃空哈希，类型只认 image/video（其余按图片处理）
+// normalizeMedia 归一化媒体列表：哈希与第三方直链二选一，类型只认 image/video（其余按图片处理）
 func normalizeMedia(list []GoodsMedia) []GoodsMedia {
 	out := make([]GoodsMedia, 0, len(list))
 	for _, m := range list {
-		if m.Hash == "" {
+		m.Hash = strings.TrimSpace(m.Hash)
+		m.URL = strings.TrimSpace(m.URL)
+		if m.URL != "" {
+			// 第三方直链：只校验协议，不下载；同一项不同时保留哈希
+			if !isHTTPURL(m.URL) {
+				continue
+			}
+			m.Hash = ""
+		} else if m.Hash == "" {
 			continue
 		}
 		if m.Type != "video" {
 			m.Type = "image"
 		}
-		out = append(out, GoodsMedia{Hash: m.Hash, Type: m.Type})
+		out = append(out, m)
 	}
 	return out
+}
+
+// isHTTPURL 校验第三方媒体直链（仅允许 http/https）
+func isHTTPURL(raw string) bool {
+	if len(raw) > 1000 {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
 }
 
 // mediaOf 视图媒体列表：优先 media 字段，旧数据（只有 image）回退为单张图片
@@ -189,16 +211,24 @@ func mediaOf(g model.Goods) []GoodsMedia {
 		}
 	}
 	if g.Image != "" {
-		return []GoodsMedia{{Hash: g.Image, Type: "image"}}
+		return []GoodsMedia{imageMedia(g.Image)}
 	}
 	return []GoodsMedia{}
+}
+
+// imageMedia 单张图片媒体：兼容旧数据（存哈希）与第三方直链（存完整 URL）
+func imageMedia(v string) GoodsMedia {
+	if isHTTPURL(v) {
+		return GoodsMedia{URL: v, Type: "image"}
+	}
+	return GoodsMedia{Hash: v, Type: "image"}
 }
 
 // mergeMedia 入参媒体归一化：兼容旧客户端只传 image 的情况
 func mergeMedia(list []GoodsMedia, image string) []GoodsMedia {
 	out := normalizeMedia(list)
 	if len(out) == 0 && image != "" {
-		out = []GoodsMedia{{Hash: image, Type: "image"}}
+		out = []GoodsMedia{imageMedia(image)}
 	}
 	return out
 }
@@ -212,11 +242,14 @@ func mediaJSON(list []GoodsMedia) string {
 	return string(b)
 }
 
-// firstImage 第一张图片的哈希：首页展示用
+// firstImage 第一张图片：首页展示用（本站哈希或第三方直链）
 func firstImage(list []GoodsMedia) string {
 	for _, m := range list {
 		if m.Type == "image" {
-			return m.Hash
+			if m.Hash != "" {
+				return m.Hash
+			}
+			return m.URL
 		}
 	}
 	return ""
