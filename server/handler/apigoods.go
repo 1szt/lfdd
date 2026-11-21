@@ -9,6 +9,16 @@ import (
 type ApiGoodsHandler struct {
 }
 
+// isAdminRequest 当前请求是否来自管理员（游客 / 未登录返回 false）
+func isAdminRequest(c *gin.Context) bool {
+	uid := c.GetInt64("userID")
+	if uid == 0 {
+		return false
+	}
+	me, err := service.GetMe(service.GetMeInput{UserID: uid})
+	return err == nil && me.Role == 2
+}
+
 // Sidebar 商品侧边菜单（菜单/分类列表，按 sort 升序）
 func (h *ApiGoodsHandler) Sidebar(c *gin.Context) {
 	out, err := service.GetGoodsSidebar(service.GetGoodsSidebarInput{})
@@ -44,6 +54,7 @@ func (h *ApiGoodsHandler) Page(c *gin.Context) {
 		Page:     req.Page,
 		PageSize: req.PageSize,
 		All:      req.All == 1,
+		WithCost: isAdminRequest(c), // 进价仅管理员可见
 	})
 	if err != nil {
 		c.JSON(500, gin.H{
@@ -57,7 +68,7 @@ func (h *ApiGoodsHandler) Page(c *gin.Context) {
 
 // All 全部上架商品（前端一次性拉取后本地模糊搜索）
 func (h *ApiGoodsHandler) All(c *gin.Context) {
-	out, err := service.GetGoodsAll(service.GetGoodsAllInput{})
+	out, err := service.GetGoodsAll(service.GetGoodsAllInput{WithCost: isAdminRequest(c)})
 	if err != nil {
 		c.JSON(500, gin.H{
 			"message": "服务器内部错误",
@@ -158,14 +169,14 @@ func (h *ApiGoodsHandler) Sort(c *gin.Context) {
 	})
 }
 
-// Upload 商品图片上传（multipart 字段名 file，≤5MB，jpg/png/gif/webp）
-// 文件按内容 SHA-256 哈希命名存储（无后缀、同图去重），返回 {"hash":"{sha256}"}
-// 数据库 goods.image 只存哈希，图片访问走 GET /api/upload/{hash}（类型按内容嗅探）
+// Upload 商品媒体上传（multipart 字段名 file；图片 ≤20MB jpg/png/gif/webp，视频 ≤50MB mp4/mov/webm）
+// 图片由 Go 压缩为 WebP（≤1MB），视频原样保存；文件按内容 SHA-256 哈希命名存储（无后缀、同内容去重）
+// 数据库 goods.media 只存哈希，访问走 GET /api/upload/{hash}（类型按内容嗅探）
 func (h *ApiGoodsHandler) Upload(c *gin.Context) {
 	fh, err := c.FormFile("file")
 	if err != nil {
 		c.JSON(400, gin.H{
-			"message": "请选择图片文件（multipart 字段名 file）",
+			"message": "请选择图片或视频文件（multipart 字段名 file）",
 		})
 		return
 	}

@@ -19,14 +19,20 @@ type Goods struct {
 	// 商品价格，单位：分（1850 = 18.50 元），避免浮点精度问题
 	Price int `json:"price" gorm:"not null;default:0"`
 
+	// 商品进价（成本价），单位：分；仅管理员可见
+	Cost int `json:"cost" gorm:"not null;default:0"`
+
 	// 商品规格（如"大杯/中杯"、"500g"），可空
 	Spec string `json:"spec" gorm:"size:128"`
 
 	// 库存，-1 表示不限库存
 	Stock int `json:"stock" gorm:"not null;default:0"`
 
-	// 商品图片地址，可空
+	// 商品图片地址，可空（保留字段：取第一张图片，供购物车等旧逻辑使用）
 	Image string `json:"image" gorm:"size:255"`
+
+	// 商品媒体列表（图片/视频），JSON 数组：[{"hash":"...","type":"image"}]，可空
+	Media string `json:"media" gorm:"type:text"`
 
 	// 同级排序，数值越小越靠前；前端拖拽后由业务层整组重写
 	Sort int `json:"sort" gorm:"not null;default:0"`

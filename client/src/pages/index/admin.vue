@@ -125,14 +125,14 @@
             <q-item
               v-for="(g, gIdx) in goodsList"
               :key="g.id"
-              class="menu-row"
+              class="menu-row goods-row"
               draggable="true"
               @dragstart="onGoodsDragStart(gIdx)"
               @dragover.prevent
               @drop="onGoodsDrop(gIdx)"
               @dragend="dragGoodsIdx = null"
             >
-              <q-item-section avatar>
+              <q-item-section avatar class="goods-photo">
                 <div class="goods-thumb">
                   <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
                   <q-icon
@@ -143,31 +143,34 @@
                   />
                 </div>
               </q-item-section>
-              <q-item-section>
-                <q-item-label class="text-weight-medium">{{
-                  g.name
-                }}</q-item-label>
-                <q-item-label caption>
-                  {{ menuName(g.menu_id) }}
-                  <span v-if="g.spec"> · {{ g.spec }}</span>
-                  <span v-if="g.alias"> · 别名：{{ g.alias }}</span>
-                  · 库存 {{ g.stock === -1 ? "不限" : g.stock }}
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side class="text-negative text-weight-bold">
-                ¥{{ (g.price / 100).toFixed(2) }}
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle
-                  :model-value="g.status === 1"
-                  :label="g.status === 1 ? '上架' : '下架'"
-                  dense
-                  color="positive"
-                  @update:model-value="(v: boolean) => toggleStatus(g, v)"
-                />
-              </q-item-section>
-              <q-item-section side>
-                <div class="row no-wrap">
+              <q-item-section class="goods-body">
+                <!-- 上：规格信息 -->
+                <div class="goods-spec">
+                  <div class="goods-head">
+                    <div class="goods-name text-weight-medium">{{
+                      g.name
+                    }}</div>
+                    <div class="goods-price text-negative text-weight-bold">
+                      ¥{{ (g.price / 100).toFixed(2) }}
+                    </div>
+                  </div>
+                  <div class="goods-meta text-caption text-grey-7">
+                    {{ menuName(g.menu_id) }}
+                    <span v-if="g.spec"> · {{ g.spec }}</span>
+                    <span v-if="g.alias"> · 别名：{{ g.alias }}</span>
+                    · 库存 {{ g.stock === -1 ? "不限" : g.stock }}
+                  </div>
+                </div>
+                <!-- 下：操作 -->
+                <div class="goods-actions">
+                  <q-toggle
+                    :model-value="g.status === 1"
+                    :label="g.status === 1 ? '上架' : '下架'"
+                    dense
+                    color="positive"
+                    @update:model-value="(v: boolean) => toggleStatus(g, v)"
+                  />
+                  <q-space />
                   <q-btn dense flat round icon="edit" @click="openGoods(g)" />
                   <q-btn
                     dense
@@ -982,6 +985,15 @@
               dense
             />
             <q-input
+              v-model="goodsForm.costYuan"
+              label="进价（元）"
+              type="number"
+              step="0.01"
+              min="0"
+              outlined
+              dense
+            />
+            <q-input
               v-model="goodsForm.spec"
               label="规格（如：大杯 / 500g，可空）"
               outlined
@@ -995,37 +1007,66 @@
               dense
               hint="-1 = 不限库存，0 = 售罄"
             />
-            <!-- 图片：选择文件即上传（哈希命名），image 字段只存哈希 -->
-            <q-file
-              v-model="goodsImageFile"
-              outlined
-              dense
-              label="上传图片（可空，jpg/png/gif/webp，≤5MB）"
-              accept="image/*"
-              :loading="imgUploading"
-              @update:model-value="uploadGoodsImage"
-            >
-              <template #prepend>
-                <q-icon name="upload" />
-              </template>
-            </q-file>
-            <div v-if="goodsForm.image" class="row items-center q-gutter-sm">
-              <img
-                :src="imgSrc(goodsForm.image)"
-                class="goods-thumb"
-                style="width: 48px; height: 48px"
-                alt=""
-              />
-              <span class="text-caption text-grey-6">预览</span>
-              <q-btn
-                flat
+            <!-- 媒体：上传（哈希存储）与第三方直链（只存链接）并排，左右与上方字段对齐 -->
+            <div class="row items-center">
+              <q-file
+                v-model="goodsMediaFiles"
+                outlined
                 dense
-                size="sm"
-                color="negative"
-                icon="close"
-                label="移除"
-                @click="goodsForm.image = ''"
+                multiple
+                class="col"
+                label="上传图片/视频（压缩为 WebP ≤1MB，视频原样保存）"
+                accept="image/*,video/*"
+                :loading="imgUploading"
+                @update:model-value="uploadGoodsMedia"
+              >
+                <template #prepend>
+                  <q-icon name="upload" />
+                </template>
+              </q-file>
+              <q-btn
+                dense
+                outline
+                color="primary"
+                icon="link"
+                label="添加第三方链接"
+                no-caps
+                class="media-link-btn q-ml-sm"
+                @click="promptMediaUrl"
               />
+            </div>
+            <div v-if="goodsForm.media.length" class="media-grid">
+              <div
+                v-for="(m, i) in goodsForm.media"
+                :key="mediaKey(m)"
+                class="media-item"
+              >
+                <img v-if="m.type === 'image'" :src="mediaSrc(m)" alt="" />
+                <video
+                  v-else-if="m.type === 'video'"
+                  :src="mediaSrc(m)"
+                  muted
+                  playsinline
+                  preload="metadata"
+                />
+                <div v-else class="media-web">
+                  <q-icon name="language" size="26px" />
+                </div>
+                <q-btn
+                  round
+                  dense
+                  size="xs"
+                  color="negative"
+                  icon="close"
+                  class="media-remove"
+                  @click="goodsForm.media.splice(i, 1)"
+                />
+                <div
+                  v-if="m.type === 'image' && mediaKey(m) === firstMediaImage()"
+                  class="media-tag"
+                  >首页</div
+                >
+              </div>
             </div>
             <q-toggle
               v-model="goodsForm.statusOn"
@@ -1127,11 +1168,19 @@ interface AdminGoods {
   name: string;
   alias: string; // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
   price: number; // 分
+  cost?: number; // 进价，分（仅管理员接口返回）
   spec: string;
   stock: number;
   image: string;
+  media?: GoodsMedia[]; // 图片/视频列表
   sort: number;
   status: number;
+}
+
+interface GoodsMedia {
+  hash?: string; // 本站上传：内容哈希
+  url?: string; // 第三方：图片/视频直链或网页地址
+  type: "image" | "video" | "web";
 }
 
 // ================= 通用 =================
@@ -1330,15 +1379,16 @@ const goodsForm = reactive({
   name: "",
   alias: "",
   priceYuan: "0",
+  costYuan: "0",
   spec: "",
   stock: "-1",
-  image: "",
+  media: [] as GoodsMedia[],
   statusOn: true,
   sort: 0
 });
 
-// 图片上传：选择文件即传给后端（内容哈希命名），成功后把返回哈希填进 goodsForm.image
-const goodsImageFile = ref<File | null>(null);
+// 媒体上传：选择文件即传给后端（内容哈希命名），成功后追加到 goodsForm.media
+const goodsMediaFiles = ref<File[] | null>(null);
 const imgUploading = ref(false);
 
 // image 字段只存哈希，展示时拼成 /api/upload/{hash}（兼容旧数据里的完整 URL/路径）
@@ -1349,33 +1399,86 @@ function imgSrc(v: string): string {
   return apiPath(`/api/upload/${v}`);
 }
 
-async function uploadGoodsImage(f: unknown) {
-  if (!f) return;
+// 媒体标识：本站哈希或第三方直链
+function mediaKey(m: GoodsMedia): string {
+  return m.hash || m.url || "";
+}
+
+// 媒体地址：本站哈希拼成 /api/upload/{hash}，第三方直链原样使用
+function mediaSrc(m: GoodsMedia): string {
+  return imgSrc(mediaKey(m));
+}
+
+// 第一张图片：首页展示用（哈希或直链）
+function firstMediaImage(): string {
+  const m = goodsForm.media.find(x => x.type === "image");
+  return m ? mediaKey(m) : "";
+}
+
+// ================= 第三方媒体链接 =================
+// 弹窗输入链接：避免在商品弹窗里再加一个输入框
+function promptMediaUrl() {
+  $q.dialog({
+    title: "添加第三方链接",
+    message:
+      "粘贴 http/https 链接：图片/视频按扩展名识别，其它链接按网页嵌套显示（对方站点禁止嵌套时会打不开）",
+    prompt: { model: "", type: "text" },
+    cancel: true,
+    persistent: true
+  }).onOk((val: unknown) => addMediaUrl(String(val ?? "").trim()));
+}
+
+// 第三方链接：只存链接，不下载；按扩展名判断图片/视频，其余按网页嵌入
+function addMediaUrl(u: string) {
+  if (!/^https?:\/\//i.test(u)) {
+    $q.notify({ message: "请输入 http/https 开头的完整链接", color: "negative" });
+    return;
+  }
+  const path = u.split(/[?#]/)[0]!.toLowerCase();
+  const type: GoodsMedia["type"] = /\.(mp4|m4v|mov|webm)$/.test(path)
+    ? "video"
+    : /\.(jpe?g|png|gif|webp|avif|bmp)$/.test(path)
+      ? "image"
+      : "web";
+  goodsForm.media.push({ url: u, type });
+}
+
+// 批量上传：逐张/逐段传到后端，按返回哈希追加进媒体列表
+async function uploadGoodsMedia(files: unknown) {
+  const targets = (Array.isArray(files) ? files : files ? [files] : []).filter(
+    (f): f is File => f instanceof File
+  );
+  if (targets.length === 0) return;
   imgUploading.value = true;
   try {
-    const fd = new FormData();
-    fd.append("file", f as File);
-    const res = await fetch("/api/goods/upload", {
-      method: "POST",
-      ...(token.value
-        ? { headers: { Authorization: `Bearer ${token.value}` } }
-        : {}),
-      body: fd
-    });
-    if (res.status === 401) {
-      token.value = "";
-      localStorage.removeItem(TOKEN_KEY);
-      markLoggedOut();
-      throw new Error("登录已过期，请重新登录");
+    for (const f of targets) {
+      const fd = new FormData();
+      fd.append("file", f);
+      const res = await fetch("/api/goods/upload", {
+        method: "POST",
+        ...(token.value
+          ? { headers: { Authorization: `Bearer ${token.value}` } }
+          : {}),
+        body: fd
+      });
+      if (res.status === 401) {
+        token.value = "";
+        localStorage.removeItem(TOKEN_KEY);
+        markLoggedOut();
+        throw new Error("登录已过期，请重新登录");
+      }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.message || `上传失败（${res.status}）`);
+      goodsForm.media.push({
+        hash: data.hash,
+        type: f.type.startsWith("video/") ? "video" : "image"
+      });
     }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `上传失败（${res.status}）`);
-    goodsForm.image = data.hash;
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
   } finally {
     imgUploading.value = false;
-    goodsImageFile.value = null; // 清掉以便再次选同一文件也能触发
+    goodsMediaFiles.value = null; // 清掉以便再次选同一文件也能触发
   }
 }
 
@@ -1444,9 +1547,15 @@ function openGoods(g?: AdminGoods) {
     goodsForm.name = g.name;
     goodsForm.alias = g.alias || "";
     goodsForm.priceYuan = (g.price / 100).toFixed(2);
+    goodsForm.costYuan = ((g.cost ?? 0) / 100).toFixed(2);
     goodsForm.spec = g.spec;
     goodsForm.stock = String(g.stock);
-    goodsForm.image = g.image;
+    goodsForm.media =
+      g.media && g.media.length
+        ? g.media.map(m => ({ ...m }))
+        : g.image
+          ? [{ hash: g.image, type: "image" }]
+          : [];
     goodsForm.statusOn = g.status === 1;
     goodsForm.sort = g.sort;
   } else {
@@ -1456,19 +1565,21 @@ function openGoods(g?: AdminGoods) {
     goodsForm.name = "";
     goodsForm.alias = "";
     goodsForm.priceYuan = "0";
+    goodsForm.costYuan = "0";
     goodsForm.spec = "";
     goodsForm.stock = "-1";
-    goodsForm.image = "";
+    goodsForm.media = [];
     goodsForm.statusOn = true;
     goodsForm.sort = 0;
   }
-  goodsImageFile.value = null;
+  goodsMediaFiles.value = null;
   goodsDlg.value = true;
 }
 
 async function saveGoods() {
   const name = goodsForm.name.trim();
   const price = Math.round(parseFloat(goodsForm.priceYuan || "0") * 100);
+  const cost = Math.round(parseFloat(goodsForm.costYuan || "0") * 100);
   const stock = parseInt(goodsForm.stock, 10);
 
   if (!name) {
@@ -1483,6 +1594,10 @@ async function saveGoods() {
     $q.notify({ message: "价格无效", color: "negative" });
     return;
   }
+  if (!Number.isFinite(cost) || cost < 0) {
+    $q.notify({ message: "进价无效", color: "negative" });
+    return;
+  }
   if (!Number.isInteger(stock)) {
     $q.notify({ message: "库存需为整数（-1 = 不限）", color: "negative" });
     return;
@@ -1495,9 +1610,11 @@ async function saveGoods() {
       name,
       alias: goodsForm.alias.trim(),
       price,
+      cost,
       spec: goodsForm.spec.trim(),
       stock,
-      image: goodsForm.image.trim(),
+      media: goodsForm.media.map(m => ({ ...m })),
+      image: firstMediaImage(),
       status: goodsForm.statusOn ? 1 : 0,
       sort: goodsForm.sort
     };
@@ -2236,10 +2353,133 @@ onMounted(async () => {
   overflow-y: auto;
 }
 
+/* 商品媒体：多图/视频缩略图网格 */
+.media-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+/* 网页嵌套项：缩略图占位 */
+.media-web {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #eef1f5;
+  color: #5f6b7a;
+}
+
+/* 添加第三方链接按钮：与左侧 dense 上传框同高（40px）、同圆角 */
+.media-link-btn {
+  height: 40px;
+  border-radius: 4px;
+}
+
+.media-item {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f5f5f5;
+
+  img,
+  video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.media-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  z-index: 1;
+}
+
+.media-tag {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+}
+
 .menu-row {
   cursor: grab;
   &:active {
     cursor: grabbing;
+  }
+}
+
+/* 商品行：左图 + 右侧上下两段（上规格 / 下操作） */
+.goods-row {
+  align-items: flex-start;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.goods-photo {
+  padding-top: 2px;
+}
+
+.goods-body {
+  min-width: 0;
+}
+
+.goods-spec,
+.goods-actions {
+  width: 100%;
+  min-width: 0;
+}
+
+.goods-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.goods-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.goods-price {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.goods-meta {
+  margin-top: 2px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.goods-actions {
+  display: flex;
+  align-items: center;
+  margin-top: 6px;
+}
+
+@media (max-width: 599px) {
+  .goods-thumb {
+    width: 34px;
+    height: 34px;
+  }
+
+  .goods-actions {
+    margin-top: 4px;
   }
 }
 </style>

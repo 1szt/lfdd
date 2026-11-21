@@ -1,1 +1,6 @@
 // app global css
+
+// 提示统一显示在底部，但抬高位置以避开底部导航栏、结算条和悬浮购物车入口
+.q-notifications__list--bottom .q-notification {
+  margin-bottom: 120px;
+}

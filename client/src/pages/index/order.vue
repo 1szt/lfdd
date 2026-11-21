@@ -23,6 +23,41 @@
       />
     </div>
 
+    <!-- 管理员：服务端搜索（按单号 / 日期） -->
+    <div v-if="isAdmin" class="row items-center q-gutter-xs q-px-md q-pb-sm">
+      <q-input
+        v-model="searchKeyword"
+        dense
+        outlined
+        clearable
+        placeholder="按单号搜索"
+        class="col"
+        @keyup.enter="loadOrders(true)"
+        @clear="onKeywordClear"
+      >
+        <template #prepend>
+          <q-icon name="search" />
+        </template>
+      </q-input>
+      <q-input
+        v-model="searchDate"
+        dense
+        outlined
+        clearable
+        type="date"
+        class="col"
+        @update:model-value="loadOrders(true)"
+        @clear="onDateClear"
+      />
+      <q-btn
+        dense
+        unelevated
+        color="primary"
+        label="搜索"
+        @click="loadOrders(true)"
+      />
+    </div>
+
     <!-- 空态 -->
     <div
       v-if="orders.length === 0 && !loading"
@@ -30,7 +65,13 @@
     >
       <q-icon name="receipt_long" size="64px" color="grey-4" />
       <div class="text-body1 text-grey-7 q-mt-md">
-        {{ statusTab === "0" ? "没有未结单的订单" : "没有已结单的订单" }}
+        {{
+          searchActive
+            ? "没有符合条件的订单"
+            : statusTab === "0"
+              ? "没有未结单的订单"
+              : "没有已结单的订单"
+        }}
       </div>
       <q-btn
         v-if="statusTab === '0'"
@@ -47,8 +88,11 @@
 
       <!-- 订单卡片 -->
       <div v-for="o in orders" :key="o.id" class="order-card">
-        <div class="text-body2 text-weight-medium">{{ o.order_no }}</div>
-        <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+        <!-- 卡面只显示单号后 6 位，时间在下方；完整单号仍用于小票/复制/弹窗 -->
+        <div>
+          <div class="order-no">{{ o.order_no.slice(-6) }}</div>
+          <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+        </div>
 
         <!-- 操作按钮单独一行，避免挤压订单号；游客不显示结单/打印/改价/废单 -->
         <div class="row items-center q-gutter-xs q-mt-sm order-actions">
@@ -290,7 +334,21 @@
       <q-card class="print-card price-card">
         <q-card-section class="row items-center justify-between">
           <span class="text-body2 text-weight-medium">批量改价</span>
-          <q-icon name="price_change" color="primary" />
+          <div class="row items-center">
+            <!-- 管理员：小眼睛开关进价显示 -->
+            <q-btn
+              v-if="isAdmin"
+              flat
+              dense
+              round
+              size="sm"
+              :icon="showCost ? 'visibility_off' : 'visibility'"
+              color="grey-7"
+              aria-label="显示进价"
+              @click="toggleCost"
+            />
+            <q-icon name="price_change" color="primary" />
+          </div>
         </q-card-section>
 
         <q-card-section class="q-pt-none">
@@ -314,6 +372,10 @@
                   >
                     现改价 ¥{{ fmtPrice(r.initial) }}
                   </span>
+                </div>
+                <!-- 管理员：开启小眼睛后显示进价 -->
+                <div v-if="isAdmin && showCost" class="text-caption text-grey-6">
+                  进 ¥{{ fmtPrice(goodsCost[r.goods_id] ?? 0) }}
                 </div>
               </div>
               <q-input
@@ -384,6 +446,68 @@ const router = useRouter();
 // 游客（未登录）：不显示/不使用结单、打印、改价、废单，也看不到已结单
 const isGuest = isGuestMode();
 
+// 管理员（role=2）才能用服务端搜索（按单号 / 日期）
+const isAdmin = ref(false);
+const searchKeyword = ref("");
+const searchDate = ref("");
+const searchActive = computed(
+  () =>
+    isAdmin.value &&
+    ((searchKeyword.value || "").trim() !== "" || searchDate.value !== "")
+);
+
+// 清空单个搜索条件（Quasar clearable 会把 v-model 置为 null，需显式复位后重查）
+function onKeywordClear() {
+  searchKeyword.value = "";
+  void loadOrders(true);
+}
+function onDateClear() {
+  searchDate.value = "";
+  void loadOrders(true);
+}
+
+// 判断是否管理员：搜索入口仅对其展示，后端搜索接口另有 RoleGuard 校验
+async function loadMe() {
+  if (isGuest) return;
+  try {
+    const res = await fetch("/api/user/me");
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    isAdmin.value = Number(data?.role) === 2;
+    if (isAdmin.value) void loadGoodsCost();
+  } catch {
+    isAdmin.value = false;
+  }
+}
+
+// ================= 进价展示（仅管理员） =================
+const showCost = ref(false);
+const goodsCost = ref<Record<string, number>>({});
+let costLoaded = false;
+
+// 拉一次全部商品，取 goods_id → 进价（分）；接口只对管理员返回 cost
+async function loadGoodsCost() {
+  if (costLoaded || !isAdmin.value) return;
+  try {
+    const res = await fetch("/api/goods/all");
+    if (!res.ok) return;
+    const data = await res.json().catch(() => ({}));
+    const map: Record<string, number> = {};
+    for (const g of Array.isArray(data.list) ? data.list : []) {
+      map[String(g.id)] = Number(g.cost) || 0;
+    }
+    goodsCost.value = map;
+    costLoaded = true;
+  } catch {
+    // 静默失败：取不到就不显示进价
+  }
+}
+
+function toggleCost() {
+  showCost.value = !showCost.value;
+  if (showCost.value) void loadGoodsCost();
+}
+
 interface OrderItem {
   goods_id: string;
   name: string;
@@ -444,9 +568,20 @@ async function loadOrders(reset: boolean) {
   try {
     // 游客只看未结单（后端也会强制）
     const status = isGuest ? "0" : statusTab.value;
-    const res = await fetch(
-      `/api/order/page?page=${page.value}&page_size=${PAGE_SIZE}&status=${status}`
-    );
+    const params = new URLSearchParams({
+      page: String(page.value),
+      page_size: String(PAGE_SIZE),
+      status
+    });
+    // 管理员：附带搜索条件走服务端搜索接口；其他用户仍走分页接口
+    let url = "/api/order/page";
+    if (isAdmin.value) {
+      url = "/api/order/search";
+      const kw = (searchKeyword.value || "").trim();
+      if (kw) params.set("keyword", kw);
+      if (searchDate.value) params.set("date", searchDate.value);
+    }
+    const res = await fetch(`${url}?${params.toString()}`);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || `请求失败（${res.status}）`);
 
@@ -770,7 +905,8 @@ async function printWith(p: SavedPrinter) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  await loadMe();
   void loadOrders(true);
 });
 </script>
@@ -803,6 +939,14 @@ onMounted(() => {
   border: 1px solid #ececec;
   border-radius: 10px;
   background: #fff;
+}
+
+/* 卡面单号：加粗数字，时间在下方 */
+.order-no {
+  font-size: 21px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-variant-numeric: tabular-nums;
 }
 
 .order-items {

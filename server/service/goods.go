@@ -1,8 +1,10 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"server/core/db"
 	"server/model"
 	"strconv"
@@ -43,16 +45,25 @@ func GetGoodsSidebar(i GetGoodsSidebarInput) (o GetGoodsSidebarOutput, err error
 
 // GoodsView 商品视图（价格单位：分，1850 = 18.50 元）
 type GoodsView struct {
-	ID     int64  `json:"id,string"`
-	MenuID int64  `json:"menu_id,string"`
-	Name   string `json:"name"`
-	Alias  string `json:"alias"` // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
-	Price  int    `json:"price"`
-	Spec   string `json:"spec"`
-	Stock  int    `json:"stock"`
-	Image  string `json:"image"`
-	Sort   int    `json:"sort"`
-	Status int8   `json:"status"`
+	ID     int64        `json:"id,string"`
+	MenuID int64        `json:"menu_id,string"`
+	Name   string       `json:"name"`
+	Alias  string       `json:"alias"` // 别名（多个用逗号分隔），AI 匹配时与名称一起识别
+	Price  int          `json:"price"`
+	Cost   int          `json:"cost,omitempty"` // 进价（分），仅管理员请求时返回
+	Spec   string       `json:"spec"`
+	Stock  int          `json:"stock"`
+	Image  string       `json:"image"` // 第一张图片哈希（首页展示用）
+	Media  []GoodsMedia `json:"media"` // 图片/视频列表
+	Sort   int          `json:"sort"`
+	Status int8         `json:"status"`
+}
+
+// GoodsMedia 商品媒体：本站上传存内容哈希，第三方资源只存直链（不下载）
+type GoodsMedia struct {
+	Hash string `json:"hash,omitempty"` // 上传文件的内容哈希，访问路径 /api/upload/{hash}
+	URL  string `json:"url,omitempty"`  // 第三方图片/视频直链，前端直接用该地址
+	Type string `json:"type"`           // image / video
 }
 
 type GetGoodsPageInput struct {
@@ -60,7 +71,9 @@ type GetGoodsPageInput struct {
 	Page     int   `json:"page"`           // 页码，从 1 开始
 	PageSize int   `json:"page_size"`      // 每页条数
 	All      bool  `json:"all"`            // true = 不过滤上下架（管理端用）
+	WithCost bool  `json:"-"`              // true = 返回进价（仅管理员）
 }
+
 type GetGoodsPageOutput struct {
 	Total    int64       `json:"total"`
 	Page     int         `json:"page"`
@@ -109,7 +122,7 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 
 	o.List = make([]GoodsView, 0, len(goods))
 	for _, g := range goods {
-		o.List = append(o.List, toGoodsView(g))
+		o.List = append(o.List, toGoodsView(g, i.WithCost))
 	}
 	o.Page = i.Page
 	o.PageSize = i.PageSize
@@ -117,7 +130,9 @@ func GetGoodsPage(i GetGoodsPageInput) (o GetGoodsPageOutput, err error) {
 }
 
 // ------------------------ GetGoodsAll 全部上架商品 ------------------------
-type GetGoodsAllInput struct{}
+type GetGoodsAllInput struct {
+	WithCost bool `json:"-"` // true = 返回进价（仅管理员）
+}
 type GetGoodsAllOutput struct {
 	List []GoodsView `json:"list"`
 }
@@ -130,30 +145,153 @@ func GetGoodsAll(i GetGoodsAllInput) (o GetGoodsAllOutput, err error) {
 	}
 	o.List = make([]GoodsView, 0, len(goods))
 	for _, g := range goods {
-		o.List = append(o.List, toGoodsView(g))
+		o.List = append(o.List, toGoodsView(g, i.WithCost))
 	}
 	return o, nil
 }
 
-// toGoodsView 模型转视图，集中一处避免各接口字段遗漏
-func toGoodsView(g model.Goods) GoodsView {
-	return GoodsView{
-		ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
-		Spec: g.Spec, Stock: g.Stock, Image: g.Image, Sort: g.Sort, Status: g.Status,
+// toGoodsView 模型转视图，集中一处避免各接口字段遗漏；withCost=false 时不返回进价
+func toGoodsView(g model.Goods, withCost bool) GoodsView {
+	media := mediaOf(g)
+	// 有媒体列表时以列表为准（避免旧 image 字段残留网页链接被当图片加载）
+	image := firstImage(media)
+	if image == "" && len(media) == 0 {
+		image = g.Image
 	}
+	v := GoodsView{
+		ID: g.ID, MenuID: g.MenuID, Name: g.Name, Alias: g.Alias, Price: g.Price,
+		Spec: g.Spec, Stock: g.Stock, Image: image, Media: media, Sort: g.Sort, Status: g.Status,
+	}
+	if withCost {
+		v.Cost = g.Cost
+	}
+	return v
+}
+
+// normalizeMedia 归一化媒体列表：哈希与第三方直链二选一；
+// 类型支持 image/video/web（网页嵌套只允许第三方直链），其余按图片处理
+func normalizeMedia(list []GoodsMedia) []GoodsMedia {
+	out := make([]GoodsMedia, 0, len(list))
+	for _, m := range list {
+		m.Hash = strings.TrimSpace(m.Hash)
+		m.URL = strings.TrimSpace(m.URL)
+		if m.URL != "" {
+			// 第三方直链：只校验协议，不下载；同一项不同时保留哈希
+			if !isHTTPURL(m.URL) {
+				continue
+			}
+			m.Hash = ""
+		} else if m.Hash == "" {
+			continue
+		}
+		switch m.Type {
+		case "video":
+		case "web":
+			// 网页嵌套必须是直链，用哈希的降级为图片
+			if m.URL == "" {
+				m.Type = "image"
+			}
+		default:
+			// 旧数据把网页链接存成了图片：按 .html 后缀自动修正为网页嵌套
+			if m.URL != "" && isHTMLLink(m.URL) {
+				m.Type = "web"
+			} else {
+				m.Type = "image"
+			}
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// isHTMLLink 判断第三方链接是否网页页面（.html/.htm/.shtml）
+func isHTMLLink(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	p := strings.ToLower(u.Path)
+	return strings.HasSuffix(p, ".html") || strings.HasSuffix(p, ".htm") || strings.HasSuffix(p, ".shtml")
+}
+
+// isHTTPURL 校验第三方媒体直链（仅允许 http/https）
+func isHTTPURL(raw string) bool {
+	if len(raw) > 1000 {
+		return false
+	}
+	u, err := url.Parse(raw)
+	if err != nil {
+		return false
+	}
+	return (u.Scheme == "http" || u.Scheme == "https") && u.Host != ""
+}
+
+// mediaOf 视图媒体列表：优先 media 字段，旧数据（只有 image）回退为单张图片
+func mediaOf(g model.Goods) []GoodsMedia {
+	if g.Media != "" {
+		var list []GoodsMedia
+		if err := json.Unmarshal([]byte(g.Media), &list); err == nil {
+			return normalizeMedia(list)
+		}
+	}
+	if g.Image != "" {
+		return []GoodsMedia{imageMedia(g.Image)}
+	}
+	return []GoodsMedia{}
+}
+
+// imageMedia 单张图片媒体：兼容旧数据（存哈希）与第三方直链（存完整 URL）
+func imageMedia(v string) GoodsMedia {
+	if isHTTPURL(v) {
+		return GoodsMedia{URL: v, Type: "image"}
+	}
+	return GoodsMedia{Hash: v, Type: "image"}
+}
+
+// mergeMedia 入参媒体归一化：兼容旧客户端只传 image 的情况
+func mergeMedia(list []GoodsMedia, image string) []GoodsMedia {
+	out := normalizeMedia(list)
+	if len(out) == 0 && image != "" {
+		out = []GoodsMedia{imageMedia(image)}
+	}
+	return out
+}
+
+// mediaJSON 媒体列表序列化（写入 goods.media）
+func mediaJSON(list []GoodsMedia) string {
+	b, err := json.Marshal(list)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
+
+// firstImage 第一张图片：首页展示用（本站哈希或第三方直链）
+func firstImage(list []GoodsMedia) string {
+	for _, m := range list {
+		if m.Type == "image" {
+			if m.Hash != "" {
+				return m.Hash
+			}
+			return m.URL
+		}
+	}
+	return ""
 }
 
 // ------------------------ CreateGoods 新建商品 ------------------------
 type CreateGoodsInput struct {
-	MenuID int64  `json:"menu_id,string"`
-	Name   string `json:"name"`
-	Alias  string `json:"alias"` // 别名（多个用逗号分隔），可空
-	Price  int    `json:"price"` // 单位：分
-	Spec   string `json:"spec"`
-	Stock  int    `json:"stock"` // -1 表示不限库存
-	Image  string `json:"image"`
-	Status int8   `json:"status"` // 1 上架、0 下架
-	Sort   int    `json:"sort"`
+	MenuID int64        `json:"menu_id,string"`
+	Name   string       `json:"name"`
+	Alias  string       `json:"alias"` // 别名（多个用逗号分隔），可空
+	Price  int          `json:"price"` // 单位：分
+	Cost   int          `json:"cost"`  // 进价，单位：分
+	Spec   string       `json:"spec"`
+	Stock  int          `json:"stock"`  // -1 表示不限库存
+	Image  string       `json:"image"`  // 旧字段：单图哈希（无 media 时生效）
+	Media  []GoodsMedia `json:"media"`  // 图片/视频列表
+	Status int8         `json:"status"` // 1 上架、0 下架
+	Sort   int          `json:"sort"`
 }
 type CreateGoodsOutput struct {
 	ID int64 `json:"id,string"`
@@ -167,6 +305,9 @@ func CreateGoods(i CreateGoodsInput) (o CreateGoodsOutput, err error) {
 	if i.Price < 0 {
 		return o, errors.New("商品价格不能为负数")
 	}
+	if i.Cost < 0 {
+		return o, errors.New("商品进价不能为负数")
+	}
 	if i.Status != 0 && i.Status != 1 {
 		return o, errors.New("上架状态只能是 0 或 1")
 	}
@@ -175,8 +316,9 @@ func CreateGoods(i CreateGoodsInput) (o CreateGoodsOutput, err error) {
 	}
 
 	g := model.Goods{
-		MenuID: i.MenuID, Name: i.Name, Alias: normalizeAlias(i.Alias), Price: i.Price, Spec: i.Spec,
-		Stock: i.Stock, Image: i.Image, Status: i.Status, Sort: i.Sort,
+		MenuID: i.MenuID, Name: i.Name, Alias: normalizeAlias(i.Alias), Price: i.Price, Cost: i.Cost,
+		Spec: i.Spec, Stock: i.Stock, Image: firstImage(mergeMedia(i.Media, i.Image)),
+		Media: mediaJSON(mergeMedia(i.Media, i.Image)), Status: i.Status, Sort: i.Sort,
 	}
 	if err = db.DB.Create(&g).Error; err != nil {
 		return o, err
@@ -188,16 +330,18 @@ func CreateGoods(i CreateGoodsInput) (o CreateGoodsOutput, err error) {
 
 // ------------------------ UpdateGoods 修改商品 ------------------------
 type UpdateGoodsInput struct {
-	ID     int64  `json:"id,string"`
-	MenuID int64  `json:"menu_id,string"` // 可改所属菜单（移动分类）
-	Name   string `json:"name"`
-	Alias  string `json:"alias"` // 别名（多个用逗号分隔），可空
-	Price  int    `json:"price"` // 单位：分
-	Spec   string `json:"spec"`
-	Stock  int    `json:"stock"`
-	Image  string `json:"image"`
-	Status int8   `json:"status"` // 1 上架、0 下架
-	Sort   int    `json:"sort"`
+	ID     int64        `json:"id,string"`
+	MenuID int64        `json:"menu_id,string"` // 可改所属菜单（移动分类）
+	Name   string       `json:"name"`
+	Alias  string       `json:"alias"` // 别名（多个用逗号分隔），可空
+	Price  int          `json:"price"` // 单位：分
+	Cost   int          `json:"cost"`  // 进价，单位：分
+	Spec   string       `json:"spec"`
+	Stock  int          `json:"stock"`
+	Image  string       `json:"image"`  // 旧字段：单图哈希（无 media 时生效）
+	Media  []GoodsMedia `json:"media"`  // 图片/视频列表
+	Status int8         `json:"status"` // 1 上架、0 下架
+	Sort   int          `json:"sort"`
 }
 type UpdateGoodsOutput struct {
 	// 保持结构体配对规范，留空以备未来扩展
@@ -211,6 +355,9 @@ func UpdateGoods(i UpdateGoodsInput) (o UpdateGoodsOutput, err error) {
 	if i.Price < 0 {
 		return o, errors.New("商品价格不能为负数")
 	}
+	if i.Cost < 0 {
+		return o, errors.New("商品进价不能为负数")
+	}
 	if i.Status != 0 && i.Status != 1 {
 		return o, errors.New("上架状态只能是 0 或 1")
 	}
@@ -218,14 +365,17 @@ func UpdateGoods(i UpdateGoodsInput) (o UpdateGoodsOutput, err error) {
 		return o, err
 	}
 
+	media := mergeMedia(i.Media, i.Image)
 	res := db.DB.Model(&model.Goods{}).Where("id = ?", i.ID).Updates(map[string]interface{}{
 		"menu_id": i.MenuID,
 		"name":    i.Name,
 		"alias":   normalizeAlias(i.Alias),
 		"price":   i.Price,
+		"cost":    i.Cost,
 		"spec":    i.Spec,
 		"stock":   i.Stock,
-		"image":   i.Image,
+		"image":   firstImage(media),
+		"media":   mediaJSON(media),
 		"status":  i.Status,
 		"sort":    i.Sort,
 	})

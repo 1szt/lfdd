@@ -9,7 +9,12 @@
           @click="selectMenu('0')"
         >
           全部
-          <q-badge v-if="cartCount > 0" floating color="red" :label="cartCount" />
+          <q-badge
+            v-if="cartCount > 0"
+            floating
+            color="red"
+            :label="cartCount"
+          />
         </div>
         <div
           v-for="m in menus"
@@ -19,9 +24,17 @@
           @click="selectMenu(m.id)"
         >
           {{ m.name }}
-          <q-badge v-if="menuQty(m.id) > 0" floating color="red" :label="menuQty(m.id)" />
+          <q-badge
+            v-if="menuQty(m.id) > 0"
+            floating
+            color="red"
+            :label="menuQty(m.id)"
+          />
         </div>
-        <div v-if="menus.length === 0" class="text-caption text-grey-6 q-pa-sm text-center">
+        <div
+          v-if="menus.length === 0"
+          class="text-caption text-grey-6 q-pa-sm text-center"
+        >
           暂无分类
         </div>
       </div>
@@ -78,48 +91,100 @@
           {{ errorMsg }}
         </div>
 
-        <div v-if="loadingGoods || searchLoading" class="state-box text-grey-6">加载中…</div>
-        <div v-else-if="displayGoods.length === 0 && !errorMsg" class="state-box text-grey-6">
+        <div v-if="loadingGoods || searchLoading" class="state-box text-grey-6"
+          >加载中…</div
+        >
+        <div
+          v-else-if="displayGoods.length === 0 && !errorMsg"
+          class="state-box text-grey-6"
+        >
           {{ searchMode ? "没有匹配的商品，换个关键词试试" : "暂无商品" }}
         </div>
 
         <template v-else>
-          <div v-for="g in displayGoods" :key="g.id" class="goods-card">
+          <div v-for="(g, idx) in displayGoods" :key="g.id" class="goods-card">
             <div class="goods-img">
-              <img v-if="g.image" :src="imgSrc(g.image)" :alt="g.name" />
-              <q-icon v-else name="shopping_bag" size="32px" color="grey-5" />
+              <img
+                v-if="g.image"
+                :src="imgSrc(g.image)"
+                :alt="g.name"
+                class="goods-img-clickable"
+                @click="openViewer(g)"
+              />
+              <q-icon
+                v-else
+                :name="hasMedia(g) ? 'language' : 'shopping_bag'"
+                size="32px"
+                color="grey-5"
+                :class="{ 'goods-img-clickable': hasMedia(g) }"
+                @click="hasMedia(g) && openViewer(g)"
+              />
               <div v-if="g.stock === 0" class="sold-out">售罄</div>
             </div>
             <div class="col">
-              <div class="goods-name text-weight-medium">{{ g.name }}</div>
-              <div v-if="g.spec" class="text-caption text-grey-7 ellipsis">{{ g.spec }}</div>
-              <div class="row items-center justify-between q-mt-xs">
-                <div class="row items-baseline q-gutter-sm">
-                  <div class="text-negative text-weight-bold">¥{{ fmtPrice(g.price) }}</div>
+              <div class="row items-start no-wrap goods-name-row">
+                <div class="goods-name text-weight-medium col">{{ g.name }}</div>
+                <!-- 管理员：第一行小眼睛开启进价，点进价关闭并复现小眼睛 -->
+                <div
+                  v-if="isAdmin"
+                  class="goods-cost-toggle"
+                  :class="{ 'cursor-pointer': idx === 0 }"
+                  @click="idx === 0 && (showCost = !showCost)"
+                >
+                  <q-icon
+                    v-if="idx === 0 && !showCost"
+                    name="visibility"
+                    size="16px"
+                    class="cost-eye"
+                  />
+                  <span
+                    v-else-if="showCost"
+                    class="goods-cost text-caption"
+                    >进 ¥{{ fmtPrice(g.cost ?? 0) }}</span
+                  >
+                </div>
+              </div>
+              <div v-if="g.spec" class="text-caption text-grey-7 ellipsis">{{
+                g.spec
+              }}</div>
+              <div class="goods-foot row items-center justify-between q-mt-xs">
+                <div class="goods-price-row row items-baseline q-gutter-sm">
+                  <div class="text-negative text-weight-bold"
+                    >¥{{ fmtPrice(g.price) }}</div
+                  >
                   <span class="text-caption text-grey-6">
-                    {{ g.stock === 0 ? '已售罄' : g.stock === -1 ? '' : `库存 ${g.stock}` }}
+                    {{
+                      g.stock === 0
+                        ? "已售罄"
+                        : g.stock === -1
+                          ? ""
+                          : `库存 ${g.stock}`
+                    }}
                   </span>
                 </div>
                 <!-- 加减按钮（大号）：数量即时算进购物车 -->
                 <div v-if="g.stock !== 0" class="qty-ctrl">
                   <q-btn
-                    v-if="lineQty(g.id) > 0"
                     round
                     dense
                     color="primary"
                     class="sub-btn"
+                    :class="{ 'qty-placeholder': lineQty(g.id) <= 0 }"
+                    :tabindex="lineQty(g.id) > 0 ? 0 : -1"
                     aria-label="减少"
                     @click="changeQty(g, -1)"
                   >
                     <q-icon name="remove" size="18px" />
                   </q-btn>
                   <q-input
-                    v-if="lineQty(g.id) > 0"
                     :model-value="lineQty(g.id)"
                     type="number"
                     dense
                     borderless
                     class="qty-input"
+                    :class="{ 'qty-placeholder': lineQty(g.id) <= 0 }"
+                    :tabindex="lineQty(g.id) > 0 ? 0 : -1"
+                    :aria-hidden="lineQty(g.id) <= 0"
                     aria-label="修改数量"
                     @change="onQtyInput(g, $event)"
                   />
@@ -148,7 +213,9 @@
               label="加载更多"
               @click="loadGoods(false)"
             />
-            <span v-else-if="!searchMode" class="text-caption text-grey-6">— 没有更多了 —</span>
+            <span v-else-if="!searchMode" class="text-caption text-grey-6"
+              >— 没有更多了 —</span
+            >
           </div>
         </template>
       </div>
@@ -163,12 +230,94 @@
         </div>
         <div class="col q-ml-sm">
           <div class="text-caption" style="line-height: 1">合计</div>
-          <div class="text-weight-bold" style="line-height: 1.2">¥{{ fmtPrice(cartTotal) }}</div>
+          <div class="text-weight-bold" style="line-height: 1.2"
+            >¥{{ fmtPrice(cartTotal) }}</div
+          >
         </div>
         <q-space />
         <q-icon name="chevron_right" size="22px" />
       </div>
     </div>
+    <!-- 商品图片/视频查看：自制全屏预览，支持左右滑动切换。
+         用 q-dialog 承载：App 内返回键由 Quasar 统一拦截关闭预览，不会直接退出 App -->
+    <q-dialog v-model="viewerOpen" maximized>
+      <div class="viewer-wrap">
+      <q-btn
+        round
+        dense
+        flat
+        icon="close"
+        color="white"
+        class="viewer-close"
+        aria-label="关闭"
+        @click="requestCloseViewer"
+      />
+      <div
+        ref="viewerScroller"
+        class="viewer-scroller"
+        @scroll.passive="onViewerScroll"
+        @pointerdown="onViewerPointerDown"
+        @pointermove="onViewerPointerMove"
+        @pointerup="onViewerPointerUp"
+        @pointerleave="onViewerPointerUp"
+      >
+        <div v-for="m in viewerMedia" :key="mediaKey(m)" class="viewer-slide">
+          <img
+            v-if="m.type === 'image'"
+            :src="mediaSrc(m)"
+            alt=""
+            class="viewer-media"
+            draggable="false"
+          />
+          <video
+            v-else-if="m.type === 'video'"
+            :src="mediaSrc(m)"
+            controls
+            playsinline
+            preload="metadata"
+            class="viewer-media"
+          />
+          <iframe
+            v-else
+            :src="mediaSrc(m)"
+            class="viewer-web"
+            allowfullscreen
+          />
+        </div>
+      </div>
+      <template v-if="viewerMedia.length > 1">
+        <q-btn
+          round
+          dense
+          flat
+          icon="chevron_left"
+          color="white"
+          class="viewer-arrow viewer-arrow-left"
+          aria-label="上一张"
+          @click="goToMedia(viewerIndex - 1)"
+        />
+        <q-btn
+          round
+          dense
+          flat
+          icon="chevron_right"
+          color="white"
+          class="viewer-arrow viewer-arrow-right"
+          aria-label="下一张"
+          @click="goToMedia(viewerIndex + 1)"
+        />
+        <div class="viewer-dots">
+          <span
+            v-for="(m, i) in viewerMedia"
+            :key="mediaKey(m)"
+            class="viewer-dot"
+            :class="{ active: i === viewerIndex }"
+            @click="goToMedia(i)"
+          />
+        </div>
+      </template>
+      </div>
+    </q-dialog>
   </q-page>
 </template>
 
@@ -183,10 +332,19 @@ const pagePos = {
 </script>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from "vue";
+import {
+  computed,
+  nextTick,
+  onBeforeUnmount,
+  onMounted,
+  ref,
+  watch
+} from "vue";
 import { useRouter } from "vue-router";
 import { useQuasar } from "quasar";
 import { searchGoods } from "../../utils/search";
+import { hasToken } from "../../utils/guest";
+import { isNative } from "../../utils/printer";
 import {
   cartCount,
   cartTotal,
@@ -197,6 +355,7 @@ import {
   menuQty,
   setQty
 } from "../../utils/cart";
+import { aiLoading, aiOrder, aiText } from "../../utils/aiOrder";
 // 购物车数据在 utils/cart.ts（模块级共享，购物车页同用一份）
 
 // 与后端 service 对齐的接口返回结构
@@ -205,15 +364,33 @@ interface SidebarMenu {
   name: string;
 }
 
+interface GoodsMedia {
+  hash?: string; // 本站上传：内容哈希
+  url?: string; // 第三方：图片/视频直链或网页地址
+  type: "image" | "video" | "web";
+}
+
+// 媒体标识：本站哈希或第三方直链
+function mediaKey(m: GoodsMedia): string {
+  return m.hash || m.url || "";
+}
+
+// 媒体地址：哈希拼成本站接口，第三方直链原样使用
+function mediaSrc(m: GoodsMedia): string {
+  return imgSrc(mediaKey(m));
+}
+
 interface GoodsItem {
   id: string;
   menu_id: string;
   name: string;
   alias?: string; // 别名（多个用逗号分隔），本地搜索时与名称一起匹配
   price: number; // 单位：分（1850 = 18.50 元）
+  cost?: number; // 进价，单位：分（仅管理员接口返回）
   spec: string;
   stock: number; // -1 = 不限库存，0 = 售罄
-  image: string;
+  image: string; // 第一张图片哈希（首页展示）
+  media?: GoodsMedia[]; // 图片/视频列表
   status: number;
 }
 
@@ -244,7 +421,9 @@ const allLoaded = ref(false);
 
 const searchMode = computed(() => (searchText.value ?? "").trim() !== "");
 const displayGoods = computed(() =>
-  searchMode.value ? searchGoods(allGoods.value, searchText.value ?? "") : goods.value
+  searchMode.value
+    ? searchGoods(allGoods.value, searchText.value ?? "")
+    : goods.value
 );
 
 // 全量上架商品只拉一次；搜索时自动切到「全部」分类，实现跨分类检索
@@ -256,14 +435,17 @@ async function loadAllGoods() {
     allGoods.value = Array.isArray(data.list) ? data.list : [];
     allLoaded.value = true;
   } catch (e) {
-    $q.notify({ message: `搜索数据加载失败：${describeError(e)}`, color: "negative" });
+    $q.notify({
+      message: `搜索数据加载失败：${describeError(e)}`,
+      color: "negative"
+    });
   } finally {
     searchLoading.value = false;
   }
 }
 
 // 输入关键词进入搜索态；清空后恢复当前分类的分页列表
-watch(searchText, async (v) => {
+watch(searchText, async v => {
   if ((v ?? "").trim()) {
     if (activeMenuId.value !== "0") {
       activeMenuId.value = "0";
@@ -291,6 +473,148 @@ function describeError(e: unknown) {
 const $q = useQuasar();
 const router = useRouter();
 
+// ================= 进价（仅管理员可见，第一行小眼睛切换） =================
+const isAdmin = ref(false);
+const showCost = ref(false);
+
+async function loadMe() {
+  if (!hasToken()) return;
+  try {
+    const data = await fetchJson("/api/user/me");
+    isAdmin.value = Number(data?.role) === 2;
+  } catch {
+    isAdmin.value = false;
+  }
+}
+
+// ================= 图片/视频查看器（自制全屏预览，左右滑动切换） =================
+const viewerOpen = ref(false);
+const viewerIndex = ref(0);
+const viewerMedia = ref<GoodsMedia[]>([]);
+const viewerScroller = ref<HTMLElement | null>(null);
+
+function goodsMediaOf(g: GoodsItem): GoodsMedia[] {
+  if (g.media && g.media.length) return g.media;
+  return g.image ? [{ hash: g.image, type: "image" }] : [];
+}
+
+// 有媒体（含仅网页嵌套）才允许点开预览
+function hasMedia(g: GoodsItem): boolean {
+  return goodsMediaOf(g).length > 0;
+}
+
+// 原生 App 内的返回键由 Quasar 统一拦截（q-dialog 会注册历史记录），
+// 浏览器/网页版没有该拦截，用 history 状态实现同样的「返回先关预览」
+const nativeApp = isNative();
+
+function openViewer(g: GoodsItem) {
+  const list = goodsMediaOf(g);
+  if (list.length === 0) return;
+  viewerMedia.value = list;
+  // 首页展示第一张图片，打开时定位到它（无图片则从第一项开始）
+  const firstImageIdx = list.findIndex(m => m.type === "image");
+  viewerIndex.value = firstImageIdx >= 0 ? firstImageIdx : 0;
+  viewerOpen.value = true;
+  if (!nativeApp) history.pushState({ lfddViewer: true }, "");
+  // 打开后立即滚到目标项（等 DOM 渲染完）
+  nextTick(() => {
+    const el = viewerScroller.value;
+    if (el) el.scrollLeft = viewerIndex.value * el.clientWidth;
+  });
+}
+
+function closeViewer() {
+  viewerOpen.value = false;
+  pauseViewerVideos();
+}
+
+// 弹窗被关闭（含 App 返回键、Esc）时暂停视频，避免后台继续出声
+watch(viewerOpen, v => {
+  if (!v) pauseViewerVideos();
+});
+
+// 关闭按钮 / Esc：网页版有自身历史记录时先回退，由 popstate 统一关闭
+function requestCloseViewer() {
+  if (!nativeApp && history.state?.lfddViewer) history.back();
+  else closeViewer();
+}
+
+// 返回键/侧滑返回：只关闭预览，不发其他导航
+function onViewerPopState() {
+  if (!viewerOpen.value) return;
+  closeViewer();
+}
+
+// 离开当前项时暂停视频，避免后台继续出声
+function pauseViewerVideos() {
+  viewerScroller.value?.querySelectorAll("video").forEach(v => v.pause());
+}
+
+// 滚动结束按位置换算当前索引（用于圆点高亮）
+function onViewerScroll() {
+  const el = viewerScroller.value;
+  if (!el || el.clientWidth === 0) return;
+  const idx = Math.round(el.scrollLeft / el.clientWidth);
+  if (idx !== viewerIndex.value) viewerIndex.value = idx;
+}
+
+// 箭头/圆点切换：平滑滚动到指定项
+function goToMedia(i: number) {
+  const n = viewerMedia.value.length;
+  if (n === 0) return;
+  const idx = Math.min(Math.max(i, 0), n - 1);
+  viewerIndex.value = idx;
+  const el = viewerScroller.value;
+  if (el) el.scrollTo({ left: idx * el.clientWidth, behavior: "smooth" });
+}
+
+// 切到别的图片/视频时，暂停原来正在播放的视频
+watch(viewerIndex, () => pauseViewerVideos());
+
+// 桌面鼠标拖拽滑动（触屏走浏览器原生横向滚动，无需额外处理）
+let mouseDrag = false;
+let mouseStartX = 0;
+let mouseStartLeft = 0;
+
+function onViewerPointerDown(e: PointerEvent) {
+  if (e.pointerType !== "mouse") return;
+  if ((e.target as HTMLElement).closest("video")) return; // 不抢视频控件
+  const el = viewerScroller.value;
+  if (!el || viewerMedia.value.length < 2) return;
+  mouseDrag = true;
+  mouseStartX = e.clientX;
+  mouseStartLeft = el.scrollLeft;
+  el.style.scrollSnapType = "none"; // 拖动时关闭吸附，避免吸附抖动
+}
+
+function onViewerPointerMove(e: PointerEvent) {
+  if (!mouseDrag) return;
+  const el = viewerScroller.value;
+  if (!el) return;
+  el.scrollLeft = mouseStartLeft - (e.clientX - mouseStartX);
+}
+
+function onViewerPointerUp() {
+  if (!mouseDrag) return;
+  mouseDrag = false;
+  const el = viewerScroller.value;
+  if (!el) return;
+  el.style.scrollSnapType = "";
+  goToMedia(Math.round(el.scrollLeft / el.clientWidth));
+}
+
+// 键盘：Esc 关闭，左右方向键切换
+function onViewerKey(e: KeyboardEvent) {
+  if (!viewerOpen.value) return;
+  if (e.key === "Escape") {
+    requestCloseViewer();
+  } else if (e.key === "ArrowLeft") {
+    goToMedia(viewerIndex.value - 1);
+  } else if (e.key === "ArrowRight") {
+    goToMedia(viewerIndex.value + 1);
+  }
+}
+
 function goCart() {
   void router.push("/cart");
 }
@@ -301,54 +625,21 @@ function onQtyInput(g: GoodsItem, v: string | number) {
   setQty(g, Number.isFinite(n) ? n : 0);
 }
 
-// ================= AI 点单（后端大模型匹配商品） =================
-const aiText = ref("");
-const aiLoading = ref(false);
-
-interface AiMatchedGoods {
-  id: string;
-  name: string;
-  price: number;
-  spec: string;
-  stock: number;
-  image: string;
-  qty: number;
-}
-
+// ================= AI 点单（状态与购物车页共享，见 utils/aiOrder） =================
 async function aiMatch() {
-  const text = aiText.value.trim();
-  if (!text || aiLoading.value) return;
-  aiLoading.value = true;
+  if (!aiText.value.trim() || aiLoading.value) return;
   try {
-    const res = await fetch("/api/goods/match", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || `匹配失败（${res.status}）`);
-
-    const list: AiMatchedGoods[] = Array.isArray(data.list) ? data.list : [];
-    if (list.length === 0) {
+    const count = await aiOrder();
+    if (count === 0) {
       $q.notify({ message: "没有匹配到商品，换个说法试试", color: "orange" });
       return;
     }
-    // 按返回的数量逐个加入（changeQty 内部会按库存封顶）
-    for (const item of list) {
-      const { qty, ...goods } = item;
-      for (let n = 0; n < qty; n++) {
-        changeQty(goods, 1);
-      }
-    }
-    aiText.value = "";
     $q.notify({
-      message: `已加入 ${list.length} 种商品`,
+      message: `已加入 ${count} 种商品`,
       color: "positive"
     });
   } catch (e) {
     $q.notify({ message: describeError(e), color: "negative" });
-  } finally {
-    aiLoading.value = false;
   }
 }
 
@@ -423,7 +714,9 @@ function selectMenu(id: string) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadMenus(), loadGoods(true)]);
+  window.addEventListener("keydown", onViewerKey);
+  window.addEventListener("popstate", onViewerPopState);
+  await Promise.all([loadMenus(), loadGoods(true), loadMe()]);
   // 数据渲染后恢复上次的滚动位置
   await nextTick();
   if (sideRef.value) sideRef.value.scrollTop = pagePos.side;
@@ -431,6 +724,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  window.removeEventListener("keydown", onViewerKey);
+  window.removeEventListener("popstate", onViewerPopState);
   pagePos.activeMenuId = activeMenuId.value;
   pagePos.side = sideRef.value?.scrollTop ?? 0;
   pagePos.main = mainRef.value?.scrollTop ?? 0;
@@ -535,6 +830,112 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 点击商品图放大查看 */
+.goods-img-clickable {
+  cursor: zoom-in;
+}
+
+/* 全屏图片/视频查看器 */
+.viewer-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #000;
+  overflow: hidden;
+}
+
+.viewer-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+}
+
+/* 原生横向滚动 + 吸附：触屏可直接左右滑，鼠标拖动见脚本 */
+.viewer-scroller {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  cursor: grab;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.viewer-slide {
+  flex: 0 0 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+}
+
+.viewer-media {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+/* 网页嵌套：铺满整个预览区域 */
+.viewer-web {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+
+.viewer-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  background: rgba(0, 0, 0, 0.35);
+}
+
+.viewer-arrow-left {
+  left: 8px;
+}
+
+.viewer-arrow-right {
+  right: 8px;
+}
+
+.viewer-dots {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 16px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.viewer-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition: width 0.2s, background 0.2s;
+
+  &.active {
+    width: 16px;
+    background: #fff;
+  }
+}
+
 .sold-out {
   position: absolute;
   inset: 0;
@@ -548,6 +949,40 @@ onBeforeUnmount(() => {
 
 .goods-name {
   font-size: 14px;
+}
+
+/* 管理员：进价展示与第一行小眼睛开关 */
+.goods-name-row {
+  gap: 8px;
+}
+
+.goods-cost-toggle {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.2;
+  /* 再上移一点，贴近卡片顶部 */
+  margin-top: -7px;
+}
+
+.cost-eye {
+  color: #999;
+}
+
+.goods-cost {
+  flex: 0 0 auto;
+  color: #999;
+  white-space: nowrap;
+  line-height: 1.2;
+}
+
+/* 价格行 + 加减区：窄屏换行时加减区依然固定靠右 */
+.goods-foot {
+  row-gap: 6px;
+}
+
+.goods-price-row {
+  min-width: 0;
 }
 
 /* 吸顶顶部栏：模糊搜索 + AI 点单 */
@@ -579,7 +1014,11 @@ onBeforeUnmount(() => {
 .qty-ctrl {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
+  /* 单独换行时也贴右侧，不与价格行错位 */
+  margin-left: auto;
+  flex: 0 0 auto;
 
   .add-btn {
     width: 36px;
@@ -592,6 +1031,12 @@ onBeforeUnmount(() => {
   }
 }
 
+/* 未加入购物车时「−」和数量隐藏但保留占位，浮现时不会引起位移 */
+.qty-placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 /* 数量输入框：直接改数字（0 = 移除），隐藏数字框 spinner */
 .qty-input {
   width: 48px;
@@ -602,11 +1047,13 @@ onBeforeUnmount(() => {
     font-weight: 700;
     color: var(--q-primary);
     padding: 0;
+    appearance: textfield;
     -moz-appearance: textfield;
   }
 
   :deep(input::-webkit-outer-spin-button),
   :deep(input::-webkit-inner-spin-button) {
+    appearance: none;
     -webkit-appearance: none;
     margin: 0;
   }

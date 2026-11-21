@@ -13,6 +13,9 @@ const PATCHED = "__lfddFetchPatched";
 // 统一给 /api 请求带上身份（登录 token 或游客 token，均走 Authorization）：
 // 未登录且还没有游客身份时先自动申请，游客身份失效时自动补签一次后重试。
 export default defineBoot(async () => {
+  // 先打补丁，保证下面的游客身份申请也会被改写成本后端地址（App 内不是同源）
+  patchFetch();
+
   if (!hasToken()) {
     try {
       await ensureGuestIdentity();
@@ -20,7 +23,6 @@ export default defineBoot(async () => {
       // 后端不可用时忽略，页面会给出加载失败提示
     }
   }
-  patchFetch();
 });
 
 function patchFetch() {

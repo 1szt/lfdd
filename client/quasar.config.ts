@@ -31,8 +31,7 @@ export default defineConfig(ctx => {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
-      // 客户端只暴露 VITE_ 前缀的环境变量（.env / CI 注入）；
-      // 其余变量（如 LFDD_APP_SERVER_URL）仅在 Node 侧生效，供 capacitor.config.ts 读取
+      // 客户端只暴露 VITE_ 前缀的环境变量（.env / CI 注入）
       env: {
         clientPrefix: "VITE_"
       },
@@ -93,22 +92,20 @@ export default defineConfig(ctx => {
       // vueDevtools: true,
       // https: true,
       open: true, // opens browser window automatically
-      // 服务端无 CORS 中间件，开发时将 /api 代理到后端（自签证书需 secure: false）
+      // 开发时将 /api（含图片 /api/upload/{hash}）代理到本地后端，避免跨域
       proxy: {
-        // API + 图片直出（/api/upload/{hash}）统一代理到后端（自签证书需 secure: false）
         "/api": {
-          target: "https://localhost:9081",
-          changeOrigin: true,
-          secure: false
+          target: "http://localhost:9081",
+          changeOrigin: true
         }
       }
     },
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#framework
     framework: {
-      // 提示统一置顶：不遮挡底部操作栏/结算按钮
+      // 提示统一放底部，并在 app.scss 中抬高，避开底部导航/结算条/悬浮购物车入口
       config: {
-        notify: { position: "top" }
+        notify: { position: "bottom" }
       },
 
       // iconSet: 'material-icons', // Quasar icon set
