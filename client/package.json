@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@quasar/extras": "^2.1.0",
+    "jsqr": "^1.4.0",
     "pinia": "^4.0.2",
     "pinyin-pro": "^3.29.5",
     "quasar": "^2.35.3",

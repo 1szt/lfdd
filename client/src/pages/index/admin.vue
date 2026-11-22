@@ -1098,6 +1098,9 @@
         </q-card>
       </q-dialog>
 
+      <!-- 第三方链接：手动粘贴或扫一扫二维码 -->
+      <link-scan-dialog v-model="linkDlg" @ok="addMediaUrl" />
+
       <!-- ============ 新建 / 编辑分类 ============ -->
       <q-dialog v-model="menuDlg">
         <q-card style="min-width: 300px; max-width: 95vw">
@@ -1164,6 +1167,7 @@ import {
   markLoggedOut,
   TOKEN_KEY
 } from "@/utils/guest";
+import LinkScanDialog from "@/components/LinkScanDialog.vue";
 
 const $q = useQuasar();
 
@@ -1444,16 +1448,10 @@ function captureMedia() {
 }
 
 // ================= 第三方媒体链接 =================
-// 弹窗输入链接：避免在商品弹窗里再加一个输入框
+// 链接弹窗（手动粘贴 / 扫一扫）：独立组件，避免在商品弹窗里再加输入控件
+const linkDlg = ref(false);
 function promptMediaUrl() {
-  $q.dialog({
-    title: "添加第三方链接",
-    message:
-      "粘贴 http/https 链接：图片/视频按扩展名识别，其它链接按网页嵌套显示（对方站点禁止嵌套时会打不开）",
-    prompt: { model: "", type: "text" },
-    cancel: true,
-    persistent: true
-  }).onOk((val: unknown) => addMediaUrl(String(val ?? "").trim()));
+  linkDlg.value = true;
 }
 
 // 第三方链接：只存链接，不下载；按扩展名判断图片/视频，其余按网页嵌入
