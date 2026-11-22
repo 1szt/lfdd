@@ -39,6 +39,11 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 拍照上传商品图片：WebView 的 <input capture> 需要 CAMERA 才能唤起系统相机 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
 
     <!-- 经典蓝牙（SPP）：SPP 的 RFCOMM connect 等调用在 Android 12+ 仍强制校验 legacy BLUETOOTH
          权限（logcat: lacks permission android.permission.BLUETOOTH → 闪退）。

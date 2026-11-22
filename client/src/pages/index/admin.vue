@@ -1028,6 +1028,17 @@
                 dense
                 outline
                 color="primary"
+                icon="photo_camera"
+                label="拍照"
+                no-caps
+                class="media-link-btn q-ml-sm"
+                :loading="imgUploading"
+                @click="captureMedia"
+              />
+              <q-btn
+                dense
+                outline
+                color="primary"
                 icon="link"
                 label="添加第三方链接"
                 no-caps
@@ -1413,6 +1424,23 @@ function mediaSrc(m: GoodsMedia): string {
 function firstMediaImage(): string {
   const m = goodsForm.media.find(x => x.type === "image");
   return m ? mediaKey(m) : "";
+}
+
+// 拍照：唤起系统相机，拍完直接按上传流程压缩入库（无相机的桌面端退化为选择文件）
+function captureMedia() {
+  if (imgUploading.value) return;
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.setAttribute("capture", "environment");
+  input.style.display = "none";
+  input.addEventListener("change", () => {
+    const f = input.files?.[0];
+    input.remove();
+    if (f) uploadGoodsMedia([f]);
+  });
+  document.body.appendChild(input);
+  input.click();
 }
 
 // ================= 第三方媒体链接 =================
