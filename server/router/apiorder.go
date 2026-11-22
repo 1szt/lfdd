@@ -16,6 +16,8 @@ func apiOrderRouter() {
 	group.POST("/price", middleware.IdentityGuard(), apiOrderHandler.ChangePrice)
 	group.POST("/void", middleware.IdentityGuard(), apiOrderHandler.Void)
 	group.POST("/delete", middleware.IdentityGuard(), apiOrderHandler.Delete)
+	// 订单备注：未结单可改；游客只能改自己的单（服务层校验归属）
+	group.POST("/remark", middleware.IdentityGuard(), apiOrderHandler.Remark)
 	group.GET("/page", middleware.IdentityGuard(), apiOrderHandler.Page)
 	// 订单搜索（单号/日期）仅管理员可用
 	group.GET("/search", middleware.RoleGuard(), apiOrderHandler.Search)

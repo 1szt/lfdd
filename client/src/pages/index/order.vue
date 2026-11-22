@@ -88,10 +88,14 @@
 
       <!-- 订单卡片 -->
       <div v-for="o in orders" :key="o.id" class="order-card">
-        <!-- 卡面只显示单号后 6 位，时间在下方；完整单号仍用于小票/复制/弹窗 -->
-        <div>
-          <div class="order-no">{{ o.order_no.slice(-6) }}</div>
-          <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+        <!-- 上：单号/时间；右上角显示备注 -->
+        <div class="row items-start justify-between no-wrap">
+          <!-- 卡面只显示单号后 6 位，时间在下方；完整单号仍用于小票/复制/弹窗 -->
+          <div>
+            <div class="order-no">{{ o.order_no.slice(-6) }}</div>
+            <div class="text-caption text-grey-6">{{ o.created_at }}</div>
+          </div>
+          <div v-if="o.remark" class="order-remark">{{ o.remark }}</div>
         </div>
 
         <!-- 操作按钮单独一行，避免挤压订单号；游客不显示结单/打印/改价/废单 -->
@@ -113,6 +117,16 @@
             unelevated
             size="sm"
             @click="copyToCart(o)"
+          />
+          <q-btn
+            v-if="o.status === 0"
+            color="indigo"
+            icon="sticky_note_2"
+            label="备注"
+            unelevated
+            size="sm"
+            :loading="remarkingId === o.id"
+            @click="promptRemark(o)"
           />
           <q-btn
             v-if="!isGuest"
@@ -524,6 +538,7 @@ interface Order {
   total: number; // 合计，分（待结单时为 0）
   count: number;
   status: number; // 0 待结单、1 已结单
+  remark: string; // 订单备注（结单后锁定）
   created_at: string;
   items: OrderItem[];
 }
@@ -627,8 +642,46 @@ async function finishOrder(o: Order) {
   }
 }
 
-const deletingId = ref<string | null>(null); // 删除中的订单
+const remarkingId = ref<string | null>(null); // 保存备注中的订单
 
+// 备注：弹窗输入，留空即清空；仅未结单可改（结单后后端也会拒绝）
+function promptRemark(o: Order) {
+  $q.dialog({
+    title: "订单备注",
+    message: `订单 ${o.order_no}（留空即清空备注，最多 100 字）`,
+    prompt: {
+      model: o.remark || "",
+      type: "text"
+    },
+    cancel: true,
+    persistent: true
+  }).onOk((val: unknown) => {
+    void saveRemark(o, String(val ?? "").trim());
+  });
+}
+
+async function saveRemark(o: Order, remark: string) {
+  if (remarkingId.value) return;
+  remarkingId.value = o.id;
+  try {
+    const res = await fetch("/api/order/remark", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: o.id, remark })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `备注保存失败（${res.status}）`);
+    // 后端已去掉首尾空白，以返回值为准
+    o.remark = typeof data.remark === "string" ? data.remark : remark;
+    $q.notify({ message: "备注已保存", color: "positive" });
+  } catch (e) {
+    $q.notify({ message: describeErrorLocal(e), color: "negative" });
+  } finally {
+    remarkingId.value = null;
+  }
+}
+
+const deletingId = ref<string | null>(null); // 删除中的订单
 // 删除已结单订单：二次确认防手误
 function confirmDelete(o: Order) {
   $q.dialog({
@@ -947,6 +1000,20 @@ onMounted(async () => {
   font-weight: 700;
   letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
+}
+
+/* 右上角备注：最多占一半宽度，过长换行，不挤订单号 */
+.order-remark {
+  max-width: 50%;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #f4f4f5;
+  color: #555;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: right;
+  word-break: break-all;
 }
 
 .order-items {
