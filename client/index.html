@@ -1,54 +1,31 @@
 <!doctype html>
-<html>
-  <head>
-    <title><%= productName %></title>
+<html lang="zh-CN">
 
-    <meta charset="utf-8" />
-    <meta name="description" content="<%= productDescription %>" />
-    <meta name="format-detection" content="telephone=no" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover<% } %>"
-    />
-    <!-- 允许跨域访问后端（生产直连绝对地址、App 内 origin 为 https://localhost）。
+<head>
+  <title>
+    <%= productName %>
+  </title>
+
+  <meta charset="utf-8" />
+  <meta name="description" content="<%= productDescription %>" />
+  <meta name="format-detection" content="telephone=no" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1<% if (ctx.mode.cordova || ctx.mode.capacitor) { %>, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover<% } %>" />
+  <!-- 允许跨域访问后端（生产直连绝对地址、App 内 origin 为 https://localhost）。
          不写死后端域名，避免构建时环境变量缺失导致 CSP 把接口全部拦掉。 -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; frame-src 'self' https: http:; connect-src 'self' https: http:<% if (ctx.dev) { %> ws: wss:<% } %>"
-    />
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https: http:; media-src 'self' data: blob: https: http:; frame-src 'self' https: http:; connect-src 'self' https: http:<% if (ctx.dev) { %> ws: wss:<% } %>" />
 
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="128x128"
-      href="icons/favicon-128x128.png"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="96x96"
-      href="icons/favicon-96x96.png"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="icons/favicon-32x32.png"
-    />
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="16x16"
-      href="icons/favicon-16x16.png"
-    />
-    <link rel="icon" type="image/ico" href="favicon.ico" />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="icons/apple-icon-180x180.png"
-    />
-  </head>
-  <body>
-    <!-- quasar:entry-point -->
-  </body>
+  <link rel="icon" type="image/png" sizes="128x128" href="icons/favicon-128x128.png" />
+  <link rel="icon" type="image/png" sizes="96x96" href="icons/favicon-96x96.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png" />
+  <link rel="icon" type="image/ico" href="favicon.ico" />
+  <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-icon-180x180.png" />
+</head>
+
+<body>
+  <!-- quasar:entry-point -->
+</body>
+
 </html>

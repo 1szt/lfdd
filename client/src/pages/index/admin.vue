@@ -1028,6 +1028,17 @@
                 dense
                 outline
                 color="primary"
+                icon="photo_camera"
+                label="拍照"
+                no-caps
+                class="media-link-btn q-ml-sm"
+                :loading="imgUploading"
+                @click="captureMedia"
+              />
+              <q-btn
+                dense
+                outline
+                color="primary"
                 icon="link"
                 label="添加第三方链接"
                 no-caps
@@ -1086,6 +1097,9 @@
           </q-card-actions>
         </q-card>
       </q-dialog>
+
+      <!-- 第三方链接：手动粘贴或扫一扫二维码 -->
+      <link-scan-dialog v-model="linkDlg" @ok="addMediaUrl" />
 
       <!-- ============ 新建 / 编辑分类 ============ -->
       <q-dialog v-model="menuDlg">
@@ -1153,6 +1167,7 @@ import {
   markLoggedOut,
   TOKEN_KEY
 } from "@/utils/guest";
+import LinkScanDialog from "@/components/LinkScanDialog.vue";
 
 const $q = useQuasar();
 
@@ -1415,17 +1430,28 @@ function firstMediaImage(): string {
   return m ? mediaKey(m) : "";
 }
 
+// 拍照：唤起系统相机，拍完直接按上传流程压缩入库（无相机的桌面端退化为选择文件）
+function captureMedia() {
+  if (imgUploading.value) return;
+  const input = document.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.setAttribute("capture", "environment");
+  input.style.display = "none";
+  input.addEventListener("change", () => {
+    const f = input.files?.[0];
+    input.remove();
+    if (f) uploadGoodsMedia([f]);
+  });
+  document.body.appendChild(input);
+  input.click();
+}
+
 // ================= 第三方媒体链接 =================
-// 弹窗输入链接：避免在商品弹窗里再加一个输入框
+// 链接弹窗（手动粘贴 / 扫一扫）：独立组件，避免在商品弹窗里再加输入控件
+const linkDlg = ref(false);
 function promptMediaUrl() {
-  $q.dialog({
-    title: "添加第三方链接",
-    message:
-      "粘贴 http/https 链接：图片/视频按扩展名识别，其它链接按网页嵌套显示（对方站点禁止嵌套时会打不开）",
-    prompt: { model: "", type: "text" },
-    cancel: true,
-    persistent: true
-  }).onOk((val: unknown) => addMediaUrl(String(val ?? "").trim()));
+  linkDlg.value = true;
 }
 
 // 第三方链接：只存链接，不下载；按扩展名判断图片/视频，其余按网页嵌入

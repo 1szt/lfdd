@@ -145,6 +145,30 @@ func (h *ApiOrderHandler) Delete(c *gin.Context) {
 	c.JSON(200, gin.H{})
 }
 
+// Remark 修改订单备注：仅未结单可改，结单后后端拒绝；
+// 游客只能改自己下的单（归属由服务层校验）
+// body: {"id":"1","remark":"少冰"} → {"remark":"少冰"}
+func (h *ApiOrderHandler) Remark(c *gin.Context) {
+	var req service.SetOrderRemarkInput
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{
+			"message": "请求参数错误",
+		})
+		return
+	}
+	req.GuestID = guestIDOf(c)
+
+	out, err := service.SetOrderRemark(req)
+	if err != nil {
+		c.JSON(400, gin.H{
+			"message": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(200, out)
+}
+
 // Page 订单分页（最新在前，含明细，供列表展示与小票打印）
 // query: page（默认 1）、page_size（默认 20，上限 100）、status（-1 全部，0 未结单，1 已结单）
 func (h *ApiOrderHandler) Page(c *gin.Context) {

@@ -19,6 +19,9 @@ type Order struct {
 	// 状态：0 = 待结单（价格未锁定）、1 = 已结单（价格已锁定）
 	Status int8 `json:"status" gorm:"not null;default:0"`
 
+	// 订单备注（如「少冰」「打包」）：待结单可改，结单后锁定不允许再改
+	Remark string `json:"remark" gorm:"size:200"`
+
 	// 游客身份（Authorization 中 guest_ 开头的游客 token）：空串表示登录用户下单；游客只能看到自己的单
 	GuestID string `json:"guest_id" gorm:"size:64;index"`
 

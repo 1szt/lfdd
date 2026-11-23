@@ -6,7 +6,9 @@ import (
 	"math/rand"
 	"server/core/db"
 	"server/model"
+	"strings"
 	"time"
+	"unicode/utf8"
 
 	"gorm.io/gorm"
 )
@@ -112,6 +114,54 @@ func CreateOrder(i CreateOrderInput) (o CreateOrderOutput, err error) {
 	if err != nil {
 		return o, err
 	}
+	return o, nil
+}
+
+// ------------------------ SetOrderRemark 订单备注 ------------------------
+
+type SetOrderRemarkInput struct {
+	ID      int64  `json:"id,string"` // 订单 ID
+	Remark  string `json:"remark"`     // 备注内容，空串表示清空
+	GuestID string `json:"-"`          // 游客身份：非空时只能改自己下的单
+}
+type SetOrderRemarkOutput struct {
+	Remark string `json:"remark"`
+}
+
+// SetOrderRemark 修改订单备注：仅未结单可改（结单后锁定）；
+// 游客只能改自己下的单，登录用户（含管理员）可改任意未结单订单
+func SetOrderRemark(i SetOrderRemarkInput) (o SetOrderRemarkOutput, err error) {
+	remark := strings.TrimSpace(i.Remark)
+	if utf8.RuneCountInString(remark) > 100 {
+		return o, errors.New("备注不能超过 100 个字")
+	}
+
+	var ord model.Order
+	if err = db.DB.First(&ord, i.ID).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return o, errors.New("订单不存在")
+		}
+		return o, err
+	}
+	if ord.Status != 0 {
+		return o, errors.New("已结单的订单不能修改备注")
+	}
+	if i.GuestID != "" && ord.GuestID != i.GuestID {
+		return o, errors.New("只能修改自己订单的备注")
+	}
+
+	// 带上 status=0 再更新，避免校验后被并发结单
+	res := db.DB.Model(&model.Order{}).
+		Where("id = ? AND status = ?", ord.ID, 0).
+		Update("remark", remark)
+	if res.Error != nil {
+		return o, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return o, errors.New("已结单的订单不能修改备注")
+	}
+
+	o.Remark = remark
 	return o, nil
 }
 
@@ -371,6 +421,7 @@ type OrderView struct {
 	Total     int             `json:"total"`  // 合计，分（待结单时为 0）
 	Count     int             `json:"count"`  // 商品总件数
 	Status    int8            `json:"status"` // 0 待结单、1 已结单
+	Remark    string          `json:"remark"` // 订单备注
 	CreatedAt string          `json:"created_at"`
 	Items     []OrderItemView `json:"items"`
 }
@@ -512,6 +563,7 @@ func GetOrders(i GetOrdersInput) (o GetOrdersOutput, err error) {
 			Total:     total,
 			Count:     ord.Count,
 			Status:    ord.Status,
+			Remark:    ord.Remark,
 			CreatedAt: ord.CreatedAt.Format("2006-01-02 15:04:05"),
 			Items:     list,
 		})
